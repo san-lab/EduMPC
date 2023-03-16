@@ -1,2 +1,2 @@
 # EduMPC
-Educational MPC brick set based on libp2p
+Simple educational MPC brick set based on libp2p
