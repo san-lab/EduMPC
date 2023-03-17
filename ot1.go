@@ -12,10 +12,10 @@ var role string
 var msg1 string
 var msg2 string
 
-var A *ECPoint
+var A = &ECPoint{}
 var a []byte
 
-var B *ECPoint
+var B = &ECPoint{}
 var b []byte
 
 
@@ -71,13 +71,26 @@ func Ot1PromptJoin(mpcn *MPCNode, ses *Session) {
 		prP = promptui.Prompt{Label: "Message 2"}
 		msg2, _ = prP.Run()
 
-		A, a, _ = senderInit(myCurve)
+		Atmp, _, _ := senderInit(myCurve)
+		fmt.Println("Atmp:", *Atmp, Atmp.X, Atmp.Y)
+
 		mpcm := new(MPCMessage)
-		ABytes , _ := json.Marshal(*A)
+		ABytes, err := json.Marshal(*Atmp)
+
+		fmt.Println("lenAbytes:", len(ABytes))
+
+		fmt.Println("err:", err)
+
+		test := ECPoint{}
+		json.Unmarshal(ABytes, &test)
+		fmt.Println("test:", test)
+
+
 		mpcm.Message = ABytes
+
 		mpcm.Command = "choose"
 		mpcn.Respond(mpcm, ses)
-		ses.Interactive = false 
+		ses.Interactive = false
 	}
 }
 
@@ -98,7 +111,7 @@ func Ot1PromptChoice(mpcn *MPCNode, ses *Session) {
 
 	}
 	mpcm := new(MPCMessage)
-	BBytes , _ := json.Marshal(B)
+	BBytes , _ := json.Marshal(*B)
 	mpcm.Message = BBytes
 	mpcm.Command = "transfer"
 	mpcn.Respond(mpcm, ses)
@@ -113,7 +126,8 @@ func HandleOt1Message(mpcm *MPCMessage, ses *Session) {
 		ses.NextPrompt = Ot1PromptJoin
 	case "choose":
 		ses.Interactive = true
-		json.Unmarshal(mpcm.Message, A)
+		err := json.Unmarshal(mpcm.Message, A)
+		fmt.Println("errorrrrr:" , err)
 		ses.NextPrompt = Ot1PromptChoice
 	case "transfer":
 		fmt.Println("we got here yay!")
