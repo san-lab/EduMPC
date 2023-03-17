@@ -108,5 +108,7 @@ func StartNewSessionUI(mpcn *MPCNode) {
 	if prot == string(chat) {
 		InitNewChat(mpcn)
 	}
-
+	if prot == string(ot1) {
+		InitNewOt1(mpcn)
+	}
 }

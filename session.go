@@ -20,6 +20,8 @@ func (mpcn *MPCNode) NewSession(protocol Protocol, sessionID string) *Session {
 	switch protocol {
 	case chat:
 		return NewChatSession(mpcn, sessionID)
+	case ot1:
+		return NewOt1Session(mpcn, sessionID)
 	default:
 		return NewDumbSession(mpcn, sessionID)
 	}
@@ -52,16 +54,17 @@ type Protocol string
 
 const chat = Protocol("chat")
 const dumb = Protocol("Unknown protocol")
+const ot1 = Protocol("ot1")
 
 func init() {
-	Protocols = []Protocol{chat, dumb}
+	Protocols = []Protocol{chat, dumb, ot1}
 }
 
 func ShowHistory(ses *Session) {
 	fmt.Println(ses.ID, "history:")
 	for _, msg := range ses.History {
 
-		fmt.Println(msg.SenderID, string(msg.Message))
+		fmt.Println(msg.SenderID, msg.Command, string(msg.Message))
 	}
 }
 
