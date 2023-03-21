@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+//	"fmt"
 	"math/big"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -12,8 +12,8 @@ import (
 	)
 
 // Messages only known by sender
-var m0 = "boring_message00000"
-var m1 = "another_boring_message11111"
+var m0_test = []byte("boring_message00000")
+var m1_test = []byte("another_boring_message11111")
 
 
 type ECPoint struct {
@@ -46,7 +46,7 @@ func receiverPicks(curve elliptic.Curve, A *ECPoint, c int) (*ECPoint, []byte, e
 }
 
 // Ciphers both messages, each with a different key depending on its own a, A and receiver's B
-func senderEncrypts(curve elliptic.Curve, A *ECPoint, B *ECPoint, a []byte) ([]byte, []byte, []byte, []byte, error) {
+func senderEncrypts(curve elliptic.Curve, A *ECPoint, B *ECPoint, a []byte, m0 []byte, m1 []byte) ([]byte, []byte, []byte, []byte, error) {
 	// m0 encryption
         aBx, aBy := curve.ScalarMult(B.X, B.Y, a)
 	// hash sha256 as encryption key
@@ -63,8 +63,8 @@ func senderEncrypts(curve elliptic.Curve, A *ECPoint, B *ECPoint, a []byte) ([]b
         // encrypt with aes256
         e1, nonce1, err := EncryptAES(k1[:], m1)
 
-	fmt.Println("k0: ", k0)
-	fmt.Println("k1: ", k1)
+//	fmt.Println("k0: ", k0)
+//	fmt.Println("k1: ", k1)
 	return e0, nonce0, e1, nonce1, err
 }
 
@@ -74,7 +74,7 @@ func receiverDecrypts(curve elliptic.Curve, A *ECPoint, b []byte, e0 []byte, non
 	// hash sha256 as decryption key
         kc := sha256.Sum256(append(bAx.Bytes(), bAy.Bytes()...))
 
-	fmt.Println("kc: ", kc)
+//	fmt.Println("kc: ", kc)
 
 	// can only decrypt one of them
         m0, err := DecryptAES(kc[:], nonce0, e0)
@@ -99,7 +99,7 @@ func opposite(curve elliptic.Curve, A *ECPoint) *ECPoint {
 
 
 
-func EncryptAES(key []byte, plaintext string) ([]byte, []byte, error) {
+func EncryptAES(key []byte, plaintext []byte) ([]byte, []byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return []byte{}, []byte{}, err
@@ -116,7 +116,7 @@ func EncryptAES(key []byte, plaintext string) ([]byte, []byte, error) {
 		return []byte{}, []byte{}, err
 	}
 
-	ciphertext := aesgcm.Seal(nil, nonce, []byte(plaintext), nil)
+	ciphertext := aesgcm.Seal(nil, nonce, plaintext, nil)
 	return ciphertext, nonce, err
 }
 
@@ -132,7 +132,7 @@ func DecryptAES(key []byte, nonce []byte, ciphertext []byte) ([]byte, error) {
 		return []byte{}, err
 	}
 
-	plaintext, err := aesgcm.Open(nil, nonce, []byte(ciphertext), nil)
+	plaintext, err := aesgcm.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
 		return []byte{}, err
 	}

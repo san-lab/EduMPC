@@ -12,13 +12,22 @@ var role string
 var msg1 string
 var msg2 string
 
-var A = &ECPoint{}
+var A_sender = &ECPoint{}
+var A_receiver = &ECPoint{}
 var a []byte
 
-var B = &ECPoint{}
+var B_sender = &ECPoint{}
+var B_receiver = &ECPoint{}
 var b []byte
 
+var E = &EncryptedValues{}
 
+type EncryptedValues struct {
+	E0 []byte     `"json: e0"`
+	Nonce0 []byte `"json: nonce0"`
+	E1 []byte     `"json: e1"`
+	Nonce1 []byte `"json: nonce1"`
+}
 
 func InitNewOt1(mpcn *MPCNode) {
 	id := "ot1ID"
@@ -71,23 +80,11 @@ func Ot1PromptJoin(mpcn *MPCNode, ses *Session) {
 		prP = promptui.Prompt{Label: "Message 2"}
 		msg2, _ = prP.Run()
 
-		Atmp, _, _ := senderInit(myCurve)
-		fmt.Println("Atmp:", *Atmp, Atmp.X, Atmp.Y)
+		A_sender, a, _ = senderInit(myCurve)
+		ABytes, _ := json.Marshal(*A_sender)
 
 		mpcm := new(MPCMessage)
-		ABytes, err := json.Marshal(*Atmp)
-
-		fmt.Println("lenAbytes:", len(ABytes))
-
-		fmt.Println("err:", err)
-
-		test := ECPoint{}
-		json.Unmarshal(ABytes, &test)
-		fmt.Println("test:", test)
-
-
 		mpcm.Message = ABytes
-
 		mpcm.Command = "choose"
 		mpcn.Respond(mpcm, ses)
 		ses.Interactive = false
@@ -105,17 +102,39 @@ func Ot1PromptChoice(mpcn *MPCNode, ses *Session) {
 	case up:
 		return
 	case "msg1":
-		B, b, _ = receiverPicks(myCurve, A, 0)
+		B_receiver, b, _ = receiverPicks(myCurve, A_receiver, 0)
 	case "msg2":
-		B, b, _ = receiverPicks(myCurve, A, 1)
+		B_receiver, b, _ = receiverPicks(myCurve, A_receiver, 1)
 
 	}
+	BBytes , _ := json.Marshal(*B_receiver)
+
 	mpcm := new(MPCMessage)
-	BBytes , _ := json.Marshal(*B)
 	mpcm.Message = BBytes
 	mpcm.Command = "transfer"
 	mpcn.Respond(mpcm, ses)
 	ses.Interactive = false
+}
+
+func Ot1PromptTransfer(mpcn *MPCNode, ses *Session) {
+	e0, nonce0, e1, nonce1, _ := senderEncrypts(myCurve, A_sender, B_sender, a, []byte(msg1), []byte(msg2))
+	E_tmp := EncryptedValues{E0: e0, Nonce0: nonce0, E1: e1, Nonce1: nonce1}
+	EBytes, _ := json.Marshal(E_tmp)
+
+	mpcm := new(MPCMessage)
+	mpcm.Message = EBytes
+	mpcm.Command = "decrypt"
+	mpcn.Respond(mpcm, ses)
+	ses.Interactive = false
+	delete(mpcn.sessions, ses.ID)
+
+}
+
+
+func Ot1PromptDecrypt(mpcn *MPCNode, ses *Session) {
+	m, _ := receiverDecrypts(myCurve, A_receiver, b, E.E0, E.Nonce0, E.E1, E.Nonce1)
+	fmt.Println("Decrypted message:", string(m))
+	delete(mpcn.sessions, ses.ID)
 }
 
 
@@ -126,12 +145,19 @@ func HandleOt1Message(mpcm *MPCMessage, ses *Session) {
 		ses.NextPrompt = Ot1PromptJoin
 	case "choose":
 		ses.Interactive = true
-		err := json.Unmarshal(mpcm.Message, A)
-		fmt.Println("errorrrrr:" , err)
+		json.Unmarshal(mpcm.Message, A_receiver) //TODO A in session struct
 		ses.NextPrompt = Ot1PromptChoice
 	case "transfer":
-		fmt.Println("we got here yay!")
+		ses.Interactive = true
+		json.Unmarshal(mpcm.Message, B_sender)
+		ses.NextPrompt = Ot1PromptTransfer
+	case "decrypt":
+		ses.Interactive = true
+		json.Unmarshal(mpcm.Message, E)
+		ses.NextPrompt = Ot1PromptDecrypt
 	default:
+		fmt.Println("we shouldnt be here...")
+
 	}
 
 }
