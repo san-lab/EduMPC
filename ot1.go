@@ -30,10 +30,10 @@ type EncryptedValues struct {
 }
 
 func InitNewOt1(mpcn *MPCNode) {
-	id := "ot1ID"
+	id := "ot1ID" //TODO Randomize
 
 	ses := NewOt1Session(mpcn, id)
-	role = "recepient"
+	role = "recipient"
 
 	mpcm := new(MPCMessage)
 	mpcm.Protocol = ot1
@@ -51,8 +51,6 @@ func NewOt1Session(mpcn *MPCNode, sessionID string) *Session {
 	ses.Details = ShowHistory
 	ses.Interactive = true
 	ses.NextPrompt = Ot1Prompt
-//	ses.NextPrompt = Ot1PromptJoin
-
 	ses.ID = sessionID
 	mpcn.sessions[ses.ID] = ses
 	role = "sender"
