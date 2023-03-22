@@ -14,6 +14,7 @@ type Session struct {
 	NextPrompt        func(*MPCNode, *Session)
 	History           []*MPCMessage
 	Status            string
+	Node		  *MPCNode
 	State             interface{}
 }
 
@@ -48,6 +49,7 @@ func NewDumbSession(mpcn *MPCNode, sessionID string) *Session {
 	ses.Interactive = false
 	ses.NextPrompt = nil
 	mpcn.sessions[ses.ID] = ses
+	ses.Node = mpcn
 	return ses
 }
 

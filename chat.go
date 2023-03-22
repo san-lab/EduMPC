@@ -16,6 +16,7 @@ func NewChatSession(mpcn *MPCNode, sessionID string) *Session {
 	ses.NextPrompt = ChatPrompt
 	ses.ID = sessionID
 	mpcn.sessions[ses.ID] = ses
+	ses.Node = mpcn
 	return ses
 }
 
