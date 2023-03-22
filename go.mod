@@ -3,6 +3,7 @@ module github.com/san-lab/pubsubmpc
 go 1.20
 
 require (
+	github.com/google/uuid v1.3.0
 	github.com/libp2p/go-libp2p v0.26.2
 	github.com/libp2p/go-libp2p-pubsub v0.9.2
 	github.com/manifoldco/promptui v0.9.0

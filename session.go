@@ -14,6 +14,7 @@ type Session struct {
 	NextPrompt        func(*MPCNode, *Session)
 	History           []*MPCMessage
 	Status            string
+	State             interface{}
 }
 
 func (mpcn *MPCNode) NewSession(protocol Protocol, sessionID string) *Session {
