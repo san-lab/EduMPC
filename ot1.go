@@ -8,22 +8,6 @@ import (
 	"github.com/manifoldco/promptui"
 )
 
-//TODO role within the Session
-//var role string
-
-//var msg1 string
-//var msg2 string
-
-// var A_sender = &ECPoint{}
-// var A_receiver = &ECPoint{}
-//var a []byte
-
-// var B_sender = &ECPoint{}
-// var B_receiver = &ECPoint{}
-//var b []byte
-
-//var E = &EncryptedValues{}
-
 type OT1State struct {
 	Role        string
 	Msg1        string
@@ -78,7 +62,7 @@ func NewOt1Session(mpcn *MPCNode, sessionID string) *Session {
 	ots := NewOT1State()
 	ots.Role = "sender"
 	ses.State = ots
-
+	ses.Status = "awaiting peer"
 	ses.ID = sessionID
 	mpcn.sessions[ses.ID] = ses
 	ses.Node = mpcn
@@ -95,7 +79,7 @@ func PrintState(ses *Session) {
 	fmt.Println("B:", ots.B)
 	fmt.Println("b:", ots.Priv_b)
 	fmt.Println("Ciphertexts:", ots.Ciphertexts)
-	fmt.Println("Plaintext:", ots.Plaintext)
+	fmt.Println("Plaintext:", string(ots.Plaintext))
 }
 
 func Ot1Prompt(mpcn *MPCNode, ses *Session) {
@@ -128,6 +112,7 @@ func Ot1PromptJoin(mpcn *MPCNode, ses *Session) {
 		mpcm.Command = "choose"
 		mpcn.Respond(mpcm, ses)
 		ses.Interactive = false
+		ses.Status = "joined"
 	}
 }
 
@@ -156,6 +141,7 @@ func Ot1PromptChoice(mpcn *MPCNode, ses *Session) {
 	mpcm.Command = "transfer"
 	mpcn.Respond(mpcm, ses)
 	ses.Interactive = false
+	ses.Status = "msg chosen"
 }
 
 func Ot1PromptTransfer(ses *Session) {
@@ -169,6 +155,7 @@ func Ot1PromptTransfer(ses *Session) {
 	mpcm.Command = "decrypt"
 	ses.Node.Respond(mpcm, ses)
 	ses.Interactive = false
+	ses.Status = "done"
 //	delete(mpcn.sessions, ses.ID)
 
 }
@@ -190,7 +177,7 @@ func HandleOt1Message(mpcm *MPCMessage, ses *Session) {
 		ses.NextPrompt = Ot1PromptJoin
 	case "choose":
 		ses.Interactive = true
-		json.Unmarshal(mpcm.Message, ots.A) //TODO A in session struct
+		json.Unmarshal(mpcm.Message, ots.A)
 		ses.NextPrompt = Ot1PromptChoice
 	case "transfer":
 		ses.Interactive = false
