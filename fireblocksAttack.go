@@ -24,6 +24,9 @@ type PM2AttState struct {
 	V1       *big.Int
 	Ps       []*big.Int
 	Qs       []*big.Int
+	rs       []*big.Int
+	xs       []*big.Int
+	x        *big.Int
 }
 
 func NewPM2AttState() *PM2AttState {
@@ -49,6 +52,9 @@ func PrintPM2AttState(ses *Session) {
 	fmt.Println("V1:", st.V1)
 	fmt.Println("Ps:", st.Ps)
 	fmt.Println("Qs:", st.Qs)
+  	fmt.Println("rs:", st.rs)
+	fmt.Println("xs:", st.xs)
+	fmt.Println("x:", st.x)
 }
 
 func InitNewPM2Att(mpcn *MPCNode) {
@@ -66,7 +72,7 @@ func InitNewPM2Att(mpcn *MPCNode) {
 	mpcm.Command = "join"
 	msg := &PM2AttMessage{}
 	msg.N = st.Priv.N
-	msg.V = st.Pub.Encrypt(st.MulShare)
+	msg.V = st.MulShare
 	st.V = msg.V
 	mpcm.Message, err = json.Marshal(msg)
 	if err != nil {
@@ -131,7 +137,7 @@ func HandlePM2AttMessage(mpcm *MPCMessage, ses *Session) {
 		}
 		st.V1 = msg.V
 		//st.AddShare = st.Priv.Decrytpt(msg.V)
-		FireblocksAttack(msg.V, st.Ps, st.Qs)
+		st.rs, st.xs, st.x = FireblocksAttack(msg.V, st.Ps, st.Qs)
 		fmt.Println(msg.N.Cmp(st.AddShare))
 
 	default:

@@ -141,14 +141,41 @@ func GenerateAttackKey(bits int) (*PaillierPriv, *PaillierPub, []*big.Int, []*bi
 
 }
 
-func FireblocksAttack(V *big.Int, Ps, Qs []*big.Int) {
+func FireblocksAttack(V *big.Int, Ps, Qs []*big.Int) ([]*big.Int, []*big.Int, *big.Int) {
 	rs := []*big.Int{}
+	xs := []*big.Int{}
 	for i := range Ps {
 		P1 := new(big.Int).Add(Ps[i], One)
 		cmq := new(big.Int).Mod(V, Qs[i])
 		r := new(big.Int).Exp(cmq, P1, Qs[i])
 		rs = append(rs, r)
-
+		//brute force attack
+		for x := big.NewInt(0); x.Cmp(Ps[i]) < 0; x.Add(x, One) {
+			if (new(big.Int).Exp(big.NewInt(4), x, Qs[i]).Cmp(r) == 0) {
+				xs = append(xs, x)
+				break
+			}
+		}
 	}
 	fmt.Println(rs)
+	fmt.Println(xs)
+	x, _ := crt(xs, Ps)
+	return rs, xs, x
+}
+
+func crt(a, n []*big.Int) (*big.Int, error) {
+    p := new(big.Int).Set(n[0])
+    for _, n1 := range n[1:] {
+        p.Mul(p, n1)
+    }
+    var x, q, s, z big.Int
+    for i, n1 := range n {
+        q.Div(p, n1)
+        z.GCD(nil, &s, n1, &q)
+        if z.Cmp(One) != 0 {
+            return nil, fmt.Errorf("%d not coprime", n1)
+        }
+        x.Add(&x, s.Mul(a[i], s.Mul(&s, &q)))
+    }
+    return x.Mod(&x, p), nil
 }

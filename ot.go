@@ -32,7 +32,7 @@ func senderInit(curve elliptic.Curve) (*ECPoint, []byte, error) {
 	return &A, a, err
 }
 
-// Takes A from sender, generates private b, and sends either B = bG or B = A + bG depending on its message choice (c = 0 or c = 1) 
+// Takes A from sender, generates private b, and sends either B = bG or B = A + bG depending on its message choice (c = 0 or c = 1)
 func receiverPicks(curve elliptic.Curve, A *ECPoint, c int) (*ECPoint, []byte, error) {
         b, bGx, bGy, err := elliptic.GenerateKey(curve, rand.Reader)
 
