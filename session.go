@@ -26,6 +26,8 @@ func (mpcn *MPCNode) NewSession(protocol Protocol, sessionID string) *Session {
 		return NewOt1Session(mpcn, sessionID)
 	case PM2A:
 		return NewRecPM2ASession(mpcn, sessionID)
+	case PM2Att:
+		return NewRecPM2AttSession(mpcn, sessionID)
 	default:
 		return NewDumbSession(mpcn, sessionID)
 	}
@@ -61,9 +63,10 @@ const chat = Protocol("chat")
 const dumb = Protocol("Unknown protocol")
 const ot1 = Protocol("ot1")
 const PM2A = Protocol("Paillier M2A") //Paillier Multi-to-Additive
+const PM2Att = Protocol("Fireblocks attack")
 
 func init() {
-	Protocols = []Protocol{chat, dumb, ot1, PM2A}
+	Protocols = []Protocol{chat, dumb, ot1, PM2A, PM2Att}
 }
 
 func ShowHistory(ses *Session) {

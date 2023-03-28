@@ -115,6 +115,9 @@ func StartNewSessionUI(mpcn *MPCNode) {
 	if prot == string(PM2A) {
 		InitNewPM2A(mpcn)
 	}
+	if prot == string(PM2Att) {
+		InitNewPM2Att(mpcn)
+	}
 }
 
 func PromptForNumber(label, def string) int {
