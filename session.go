@@ -14,7 +14,7 @@ type Session struct {
 	NextPrompt        func(*MPCNode, *Session)
 	History           []*MPCMessage
 	Status            string
-	Node		  *MPCNode
+	Node              *MPCNode
 	State             interface{}
 }
 
@@ -24,6 +24,8 @@ func (mpcn *MPCNode) NewSession(protocol Protocol, sessionID string) *Session {
 		return NewChatSession(mpcn, sessionID)
 	case ot1:
 		return NewOt1Session(mpcn, sessionID)
+	case PM2A:
+		return NewRecPM2ASession(mpcn, sessionID)
 	default:
 		return NewDumbSession(mpcn, sessionID)
 	}
@@ -58,9 +60,10 @@ type Protocol string
 const chat = Protocol("chat")
 const dumb = Protocol("Unknown protocol")
 const ot1 = Protocol("ot1")
+const PM2A = Protocol("Paillier M2A") //Paillier Multi-to-Additive
 
 func init() {
-	Protocols = []Protocol{chat, dumb, ot1}
+	Protocols = []Protocol{chat, dumb, ot1, PM2A}
 }
 
 func ShowHistory(ses *Session) {

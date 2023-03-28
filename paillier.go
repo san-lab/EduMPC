@@ -58,8 +58,8 @@ type PaillierPriv struct {
 func (pub *PaillierPub) EncryptWithR(m, r *big.Int) *big.Int {
 	G := new(big.Int).Add(pub.N, One)
 	enc := new(big.Int).Exp(G, m, pub.N2)
-	r.Exp(r, pub.N, pub.N2)
-	enc.Mul(enc, r)
+	rn := new(big.Int).Exp(r, pub.N, pub.N2)
+	enc.Mul(enc, rn)
 	enc.Mod(enc, pub.N2)
 	return enc
 

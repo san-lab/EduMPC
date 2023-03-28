@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/manifoldco/promptui"
 )
@@ -111,4 +112,21 @@ func StartNewSessionUI(mpcn *MPCNode) {
 	if prot == string(ot1) {
 		InitNewOt1(mpcn)
 	}
+	if prot == string(PM2A) {
+		InitNewPM2A(mpcn)
+	}
+}
+
+func PromptForNumber(label, def string) int {
+	pr := promptui.Prompt{Label: label, Default: def}
+
+	for {
+		res, _ := pr.Run()
+		v, err := strconv.Atoi(res)
+		if err == nil {
+			return v
+		}
+		pr.Default = res
+	}
+
 }
