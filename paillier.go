@@ -141,7 +141,7 @@ func GenerateAttackKey(bits int) (*PaillierPriv, *PaillierPub, []*big.Int, []*bi
 
 }
 
-func FireblocksAttack(V *big.Int, Ps, Qs []*big.Int) ([]*big.Int, []*big.Int, *big.Int) {
+func FireblocksAttack(aV *big.Int, V *big.Int, Ps, Qs []*big.Int) ([]*big.Int, []*big.Int, *big.Int) {
 	rs := []*big.Int{}
 	xs := []*big.Int{}
 	for i := range Ps {
@@ -151,7 +151,7 @@ func FireblocksAttack(V *big.Int, Ps, Qs []*big.Int) ([]*big.Int, []*big.Int, *b
 		rs = append(rs, r)
 		//brute force attack
 		for x := big.NewInt(0); x.Cmp(Ps[i]) < 0; x.Add(x, One) {
-			if (new(big.Int).Exp(big.NewInt(4), x, Qs[i]).Cmp(r) == 0) {
+			if (new(big.Int).Exp(aV, x, Qs[i]).Cmp(r) == 0) {
 				xs = append(xs, x)
 				break
 			}

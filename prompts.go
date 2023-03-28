@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"strconv"
-
+//	"strconv"
+	"math/big"
 	"github.com/manifoldco/promptui"
 )
 
@@ -120,13 +120,13 @@ func StartNewSessionUI(mpcn *MPCNode) {
 	}
 }
 
-func PromptForNumber(label, def string) int {
+func PromptForNumber(label, def string) *big.Int {
 	pr := promptui.Prompt{Label: label, Default: def}
-
+	v := new(big.Int)
 	for {
 		res, _ := pr.Run()
-		v, err := strconv.Atoi(res)
-		if err == nil {
+		_, ok := v.SetString(res, 10) //TODO big int set string
+		if ok {
 			return v
 		}
 		pr.Default = res

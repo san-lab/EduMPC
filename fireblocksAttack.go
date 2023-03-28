@@ -63,9 +63,10 @@ func InitNewPM2Att(mpcn *MPCNode) {
 	ses := NewSenderPM2AttSession(mpcn, sid)
 	st := (ses.State).(*PM2AttState)
 
-	st.MulShare = big.NewInt(4)
+	st.MulShare = PromptForNumber("Attack value:", "4")
 
-	bits := PromptForNumber("Bits for primes:", "256")
+	b := PromptForNumber("Bits for primes:", "256")
+	bits := int(b.Int64())
 	st.Priv, st.Pub, st.Ps, st.Qs = GenerateAttackKey(bits)
 
 	mpcm := new(MPCMessage)
@@ -137,7 +138,7 @@ func HandlePM2AttMessage(mpcm *MPCMessage, ses *Session) {
 		}
 		st.V1 = msg.V
 		//st.AddShare = st.Priv.Decrytpt(msg.V)
-		st.rs, st.xs, st.x = FireblocksAttack(msg.V, st.Ps, st.Qs)
+		st.rs, st.xs, st.x = FireblocksAttack(st.V, msg.V, st.Ps, st.Qs)
 		fmt.Println(msg.N.Cmp(st.AddShare))
 
 	default:
@@ -164,10 +165,10 @@ func PM2AttPromptJoin(mpcn *MPCNode, ses *Session) {
 		v := PromptForNumber("Local multiplicative share", "")
 
 		st := (ses.State).(*PM2AttState)
-		st.MulShare = big.NewInt(int64(v))
+		st.MulShare = v
 
 		bf := PromptForNumber("Local aditive share", "")
-		st.AddShare = big.NewInt(int64(bf)) //TODO randomize
+		st.AddShare = bf //TODO randomize
 		E := st.Pub.Encrypt(new(big.Int).Neg(st.AddShare))
 		V1 := new(big.Int).Exp(st.V, st.MulShare, st.Pub.N2)
 		V1.Mul(V1, E)

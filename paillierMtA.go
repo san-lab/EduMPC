@@ -53,10 +53,10 @@ func InitNewPM2A(mpcn *MPCNode) {
 	ses := NewSenderPM2ASession(mpcn, sid)
 	st := (ses.State).(*PM2AState)
 
-	m := PromptForNumber("Local secret value", "")
-	st.MulShare = big.NewInt(int64(m))
+	st.MulShare = PromptForNumber("Local secret value", "")
 
-	bits := PromptForNumber("Bits for primes:", "1024")
+	b := PromptForNumber("Bits for primes:", "1024")
+	bits := int(b.Int64())
 	st.Priv, st.Pub = GenerateNiceKeyPair(bits)
 
 	mpcm := new(MPCMessage)
@@ -154,10 +154,10 @@ func PM2APromptJoin(mpcn *MPCNode, ses *Session) {
 		v := PromptForNumber("Local multiplicative share", "")
 
 		st := (ses.State).(*PM2AState)
-		st.MulShare = big.NewInt(int64(v))
+		st.MulShare = v
 
 		bf := PromptForNumber("Local aditive share", "")
-		st.AddShare = big.NewInt(int64(bf)) //TODO randomize
+		st.AddShare = bf //TODO randomize
 		E := st.Pub.Encrypt(new(big.Int).Neg(st.AddShare))
 		V1 := new(big.Int).Exp(st.V, st.MulShare, st.Pub.N2)
 		V1.Mul(V1, E)
