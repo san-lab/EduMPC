@@ -141,6 +141,13 @@ func GenerateAttackKey(bits int) (*PaillierPriv, *PaillierPub, []*big.Int, []*bi
 
 }
 
+
+func SQFProof(lambda *big.Int, N *big.Int, x *big.Int) *big.Int {
+	M := new(big.Int).ModInverse(N, lambda)
+	y := new(big.Int).Exp(x, M, N)
+	return y
+}
+
 func FireblocksAttack(aV *big.Int, V *big.Int, Ps, Qs []*big.Int) ([]*big.Int, []*big.Int, *big.Int) {
 	rs := []*big.Int{}
 	xs := []*big.Int{}
