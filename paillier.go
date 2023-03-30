@@ -221,10 +221,7 @@ func PQModSqrt(x, P, Q *big.Int) *big.Int {
 		return r2
 	}
 
-	s, t := new(big.Int), new(big.Int)
-	new(big.Int).GCD(s, t, P, Q)
-	r := new(big.Int).Add(new(big.Int).Mul(new(big.Int).Mul(r1, Q), t), new(big.Int).Mul(new(big.Int).Mul(r2, P), s))
-	r.Mod(r, new(big.Int).Mul(P, Q))
+	r, _ := crt([]*big.Int{r1, r2}, []*big.Int{P, Q})
 
 	return r
 }
