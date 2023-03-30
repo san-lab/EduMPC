@@ -6,7 +6,10 @@ import (
 	"math/big"
 )
 
+var Zero = big.NewInt(0)
 var One = big.NewInt(1)
+var Seven = big.NewInt(7)
+var Eight = big.NewInt(8)
 
 // Returns a key pair. The arguments p and q are *assumed* to be primes of equal length
 // (but we may want to abuse this assumption later to see some exploits).
@@ -26,18 +29,34 @@ func GenerateKeyPair(p, q *big.Int) (*PaillierPriv, *PaillierPub) {
 
 }
 
+func PaillierConstraint(P, Q *big.Int) bool {
+	N := new(big.Int).Mul(P, Q)
+	L := new(big.Int).Sub(P, One)
+	L.Mul(L, new(big.Int).Sub(Q, One))
+	L.GCD(nil, nil, N, L)
+	return L.Cmp(One) == 0
+}
+
 func GenerateNiceKeyPair(bits int) (*PaillierPriv, *PaillierPub) {
-	P, err := rand.Prime(rand.Reader, bits)
-	if err != nil {
-		fmt.Println(err)
-		return nil, nil
-	}
-	Q := big.NewInt(0).Set(P)
-	for P.Cmp(Q) == 0 {
-		Q, err = rand.Prime(rand.Reader, bits)
-		if err != nil {
-			fmt.Println(err)
-			return nil, nil
+	h1 := new(big.Int)
+	P := big.NewInt(9)
+	Q := big.NewInt(4)
+	for !PaillierConstraint(P, Q) { //Verify fundamental assumption of Paillier
+		var err error
+		for h1.Mod(P, Eight).Cmp(One) == 0 {
+			P, err = rand.Prime(rand.Reader, bits)
+			if err != nil {
+				fmt.Println(err)
+				return nil, nil
+			}
+		}
+		Q.Set(P)
+		for h1.Mod(h1.Sub(P, Q), Eight).Cmp(big.NewInt(0)) == 0 || h1.Mod(Q, Eight).Cmp(One) == 0 {
+			Q, err = rand.Prime(rand.Reader, bits)
+			if err != nil {
+				fmt.Println(err)
+				return nil, nil
+			}
 		}
 	}
 	return GenerateKeyPair(P, Q)
@@ -144,10 +163,9 @@ func GenerateAttackKey(bits int) (*PaillierPriv, *PaillierPub, []*big.Int, []*bi
 
 }
 
-
 func SQFProof(lambda *big.Int, N *big.Int, x *big.Int, bad bool) *big.Int {
 	M := new(big.Int)
-	if (bad) {
+	if bad {
 		M = big.NewInt(3) //TODO random
 	} else {
 		M = new(big.Int).ModInverse(N, lambda)
@@ -156,47 +174,60 @@ func SQFProof(lambda *big.Int, N *big.Int, x *big.Int, bad bool) *big.Int {
 	return y
 }
 
-func PPPProof(x *big.Int, N *big.Int) *big.Int {
-	r1 := new(big.Int)
-	r2 := new(big.Int)
-	r3 := new(big.Int)
-	r4 := new(big.Int)
+func PPPProof(x *big.Int, P, Q *big.Int) (*big.Int, *big.Int, int, bool) {
+	rp := new(big.Int)
+	pi := 0
+	//qi := 0
+	xp := new(big.Int)
+	//xq := new(big.Int).Set(x)
+	for ; pi < 4; pi++ {
+		xp = SelPPPValue(x, pi)
+		rp = PQModSqrt(xp, P, Q)
+		if rp != nil {
+			break
+		}
 
-	ok := r1.ModSqrt(x, N)
-	fmt.Println("sqrt x ", r1)
-	if ok != nil {
-		//return r
 	}
-
-	minusX := new(big.Int).Neg(x)
-        ok = r2.ModSqrt(minusX, N)
-        fmt.Println("sqrt -x ", r2)
-	if ok != nil {
-                //return r
-        }
-        ok = r3.ModSqrt(new(big.Int).Add(x, x), N)
-        fmt.Println("sqrt 2x ", r3)
-	if ok != nil {
-                //return r
-        }
-        ok = r4.ModSqrt(new(big.Int).Add(minusX, minusX), N)
-	fmt.Println("sqrt -2x ", r4)
-        if ok != nil {
-                //return r
-        }
-
-	if (r1 != nil) {
-		return r1
-	} else if (r2 != nil) {
-		return r2
-	} else if (r3 != nil) {
-		return r3
-	} else if (r4 != nil) {
-		return r4
-	}
-	return nil
+	ok := (pi < 4)
+	return rp, xp, pi, ok
 }
 
+func SelPPPValue(x *big.Int, i int) *big.Int {
+	ret := new(big.Int).Set(x)
+	switch i {
+	case 0:
+		//Nothing to do
+	case 1:
+		ret.Neg(ret)
+	case 2:
+		ret.Add(ret, ret)
+	case 3:
+		ret.Add(ret, ret)
+		ret.Neg(ret)
+	default:
+		ret.SetInt64(0)
+	}
+	return ret
+}
+
+func PQModSqrt(x, P, Q *big.Int) *big.Int {
+
+	r1 := new(big.Int).ModSqrt(x, P)
+	if r1 == nil {
+		return r1
+	}
+	r2 := new(big.Int).ModSqrt(x, Q)
+	if r2 == nil {
+		return r2
+	}
+
+	s, t := new(big.Int), new(big.Int)
+	new(big.Int).GCD(s, t, P, Q)
+	r := new(big.Int).Add(new(big.Int).Mul(new(big.Int).Mul(r1, Q), t), new(big.Int).Mul(new(big.Int).Mul(r2, P), s))
+	r.Mod(r, new(big.Int).Mul(P, Q))
+
+	return r
+}
 
 func FireblocksAttack(aV *big.Int, V *big.Int, Ps, Qs []*big.Int) ([]*big.Int, []*big.Int, *big.Int) {
 	rs := []*big.Int{}
@@ -208,7 +239,7 @@ func FireblocksAttack(aV *big.Int, V *big.Int, Ps, Qs []*big.Int) ([]*big.Int, [
 		rs = append(rs, r)
 		//brute force attack
 		for x := big.NewInt(0); x.Cmp(Ps[i]) < 0; x.Add(x, One) {
-			if (new(big.Int).Exp(aV, x, Qs[i]).Cmp(r) == 0) {
+			if new(big.Int).Exp(aV, x, Qs[i]).Cmp(r) == 0 {
 				xs = append(xs, x)
 				break
 			}
@@ -221,18 +252,18 @@ func FireblocksAttack(aV *big.Int, V *big.Int, Ps, Qs []*big.Int) ([]*big.Int, [
 }
 
 func crt(a, n []*big.Int) (*big.Int, error) {
-    p := new(big.Int).Set(n[0])
-    for _, n1 := range n[1:] {
-        p.Mul(p, n1)
-    }
-    var x, q, s, z big.Int
-    for i, n1 := range n {
-        q.Div(p, n1)
-        z.GCD(nil, &s, n1, &q)
-        if z.Cmp(One) != 0 {
-            return nil, fmt.Errorf("%d not coprime", n1)
-        }
-        x.Add(&x, s.Mul(a[i], s.Mul(&s, &q)))
-    }
-    return x.Mod(&x, p), nil
+	p := new(big.Int).Set(n[0])
+	for _, n1 := range n[1:] {
+		p.Mul(p, n1)
+	}
+	var x, q, s, z big.Int
+	for i, n1 := range n {
+		q.Div(p, n1)
+		z.GCD(nil, &s, n1, &q)
+		if z.Cmp(One) != 0 {
+			return nil, fmt.Errorf("%d not coprime", n1)
+		}
+		x.Add(&x, s.Mul(a[i], s.Mul(&s, &q)))
+	}
+	return x.Mod(&x, p), nil
 }

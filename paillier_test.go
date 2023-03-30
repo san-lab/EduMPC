@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rand"
 	"fmt"
 	"math/big"
 	"testing"
@@ -40,18 +41,27 @@ func TestBadProof(t *testing.T) {
 
 func TestProof2(t *testing.T) {
 	fmt.Println("----------------")
-	priv, _ := GenerateNiceKeyPair(1024)
-        x := big.NewInt(173)
-	r := PPPProof(x, priv.N)
-	fmt.Println("r:", r)
-	r2 := new(big.Int).Exp(r, big.NewInt(2), priv.N)
-	fmt.Println("r2:", r2)
+	priv, _ := GenerateNiceKeyPair(256)
+	x, _ := rand.Int(rand.Reader, priv.N)
+	sq, sq2, i, ok := PPPProof(x, priv.P, priv.Q)
+	sq2.Mod(sq2, priv.N)
+	fmt.Println("Proof exists:", ok)
 
-	minusX := new(big.Int).Mod(new(big.Int).Neg(x), priv.N)
-	twox := new(big.Int).Add(x, x)
-	minustwox := new(big.Int).Mod(new(big.Int).Add(minusX, minusX), priv.N)
-	fmt.Println(r2.Cmp(x), r2.Cmp(minusX), r2.Cmp(twox), r2.Cmp(minustwox))
-	fmt.Println("P mod 8: ", new(big.Int).Mod(priv.P, big.NewInt(8)))
-	fmt.Println("Q mod 8: ", new(big.Int).Mod(priv.P, big.NewInt(8)))
-	fmt.Println("P-Q mod 8: ", new(big.Int).Mod(new(big.Int).Add(priv.P, new(big.Int).Neg(priv.Q)), big.NewInt(8)))
+	if ok {
+
+		fmt.Println("i:", i)
+		v := new(big.Int)
+		v.Exp(sq, big.NewInt(2), priv.N)
+		fmt.Println("v:", v)
+		fmt.Println("sq2:", sq2)
+		if sq2.Sub(sq2, v).Mod(sq2, priv.N).Cmp(Zero) != 0 {
+			fmt.Println("Wrong square")
+		}
+	}
+	fmt.Println("P:", priv.P)
+	fmt.Println("Q:", priv.Q)
+
+	fmt.Println("P mod 8: ", new(big.Int).Mod(priv.P, Eight))
+	fmt.Println("Q mod 8: ", new(big.Int).Mod(priv.Q, Eight))
+	fmt.Println("P-Q mod 8: ", new(big.Int).Mod(new(big.Int).Add(priv.P, new(big.Int).Neg(priv.Q)), Eight))
 }
