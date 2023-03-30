@@ -20,7 +20,8 @@ func GenerateKeyPair(p, q *big.Int) (*PaillierPriv, *PaillierPub) {
 	Priv.Miu = new(big.Int).ModInverse(Priv.Lam, Priv.N)
 	Pub := &PaillierPub{new(big.Int).Set(Priv.N), new(big.Int).Set(Priv.N2)}
 	Priv.Pub = Pub
-
+	Priv.P = p
+	Priv.Q = q
 	return Priv, Pub
 
 }
@@ -53,6 +54,8 @@ type PaillierPriv struct {
 	N   *big.Int
 	N2  *big.Int
 	Pub *PaillierPub
+	P   *big.Int
+	Q   *big.Int
 }
 
 func (pub *PaillierPub) EncryptWithR(m, r *big.Int) *big.Int {
@@ -142,11 +145,58 @@ func GenerateAttackKey(bits int) (*PaillierPriv, *PaillierPub, []*big.Int, []*bi
 }
 
 
-func SQFProof(lambda *big.Int, N *big.Int, x *big.Int) *big.Int {
-	M := new(big.Int).ModInverse(N, lambda)
+func SQFProof(lambda *big.Int, N *big.Int, x *big.Int, bad bool) *big.Int {
+	M := new(big.Int)
+	if (bad) {
+		M = big.NewInt(3) //TODO random
+	} else {
+		M = new(big.Int).ModInverse(N, lambda)
+	}
 	y := new(big.Int).Exp(x, M, N)
 	return y
 }
+
+func PPPProof(x *big.Int, N *big.Int) *big.Int {
+	r1 := new(big.Int)
+	r2 := new(big.Int)
+	r3 := new(big.Int)
+	r4 := new(big.Int)
+
+	ok := r1.ModSqrt(x, N)
+	fmt.Println("sqrt x ", r1)
+	if ok != nil {
+		//return r
+	}
+
+	minusX := new(big.Int).Neg(x)
+        ok = r2.ModSqrt(minusX, N)
+        fmt.Println("sqrt -x ", r2)
+	if ok != nil {
+                //return r
+        }
+        ok = r3.ModSqrt(new(big.Int).Add(x, x), N)
+        fmt.Println("sqrt 2x ", r3)
+	if ok != nil {
+                //return r
+        }
+        ok = r4.ModSqrt(new(big.Int).Add(minusX, minusX), N)
+	fmt.Println("sqrt -2x ", r4)
+        if ok != nil {
+                //return r
+        }
+
+	if (r1 != nil) {
+		return r1
+	} else if (r2 != nil) {
+		return r2
+	} else if (r3 != nil) {
+		return r3
+	} else if (r4 != nil) {
+		return r4
+	}
+	return nil
+}
+
 
 func FireblocksAttack(aV *big.Int, V *big.Int, Ps, Qs []*big.Int) ([]*big.Int, []*big.Int, *big.Int) {
 	rs := []*big.Int{}
