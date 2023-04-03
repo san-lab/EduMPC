@@ -10,6 +10,7 @@ import (
 
 
 func TestPedersen(t *testing.T) {
+	fmt.Println("-----------------")
 	Setup()
 
         v := []byte("010101value")
@@ -32,22 +33,24 @@ func TestBytesInt(t *testing.T){
 // and r to fake_r = r + k * v - k * fake_v
 // and still pass the test
 func TestEvilPedersen(t *testing.T) {
+	fmt.Println("-----------------")
         Setup()
 
-        v := []byte("00000011")
+        v := []byte{0,0,0,0,0,0,1,1}
         r, C := Commit(v)
         fmt.Println("Verify?: ", VerifyCommitment(v, r, C))
 
+	// Craft fake_v
 	k := int64(2)
-	fake_v := []byte("00000001")
+	fake_v := []byte{0,0,0,0,0,0,0,1}
 	fake_v_int := int64(binary.BigEndian.Uint64(fake_v))
 	v_int := int64(binary.BigEndian.Uint64(v))
 	r_int := int64(binary.BigEndian.Uint64(r))
 	fake_r_int := r_int + k * v_int - k * fake_v_int
+	fmt.Println("fake_v, v, r, fake_r:", fake_v_int, v_int, r_int, fake_r_int)
 
-	fmt.Println("ints:", fake_v_int, v_int, r_int, fake_r_int)
 	fake_r_bigint := new(big.Int).Mod(big.NewInt(fake_r_int), secp256r1.Params().P)
-	fmt.Println("fake_r_int mod p:", fake_r_bigint)
+	fmt.Println("fake_r_int mod p bigint:", fake_r_bigint)
 	fake_r_int = fake_r_bigint.Int64()
 	fmt.Println("fake_r_int:", fake_r_int)
 
@@ -57,7 +60,7 @@ func TestEvilPedersen(t *testing.T) {
 	fmt.Println("bytes.Buffer:", fake_r)
 	fake_r_bytes := make([]byte, 8)
 	fake_r.Read(fake_r_bytes)
-	fmt.Println("[]byte:", fake_r_bytes)
+	fmt.Println("fake_r []byte:", fake_r_bytes)
 	fake_r_int2 := int64(binary.BigEndian.Uint64(fake_r_bytes))
 	fmt.Println("fake_r_int:", fake_r_int2)
 

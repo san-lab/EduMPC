@@ -83,7 +83,6 @@ func NewRecPM2ASession(mpcn *MPCNode, sessionID string) *Session {
 }
 
 func NewSenderPM2ASession(mpcn *MPCNode, sessionID string) *Session {
-
 	ses := new(Session)
 	ses.ID = sessionID
 	ses.Type = PM2A
@@ -127,7 +126,7 @@ func HandlePM2AMessage(mpcm *MPCMessage, ses *Session) {
 			fmt.Println(err)
 		}
 		st.V1 = msg.V
-		st.AddShare = st.Priv.Decrytpt(msg.V)
+		st.AddShare = st.Priv.Decrypt(msg.V)
 		fmt.Println(msg.N.Cmp(st.AddShare))
 
 	default:

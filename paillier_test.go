@@ -14,9 +14,11 @@ func TestProof(t *testing.T) {
 	y := SQFProof(priv.Lam, priv.N, x, false)
 	yn := new(big.Int).Exp(y, priv.N, priv.N)
 	fmt.Println("yn:", yn)
+	fmt.Println("x:", x)
 }
 
 func TestBadProof(t *testing.T) {
+	fmt.Println("----------------")
 	priv, _, ps, qs := GenerateAttackKey(1024)
 	x := big.NewInt(173)
 	lambda := big.NewInt(1)
@@ -31,12 +33,12 @@ func TestBadProof(t *testing.T) {
 		lambda.Mul(lambda, qm1)
 	}
 	fmt.Println(lambda, priv.N, x)
-	fmt.Println("gcd2:", new(big.Int).GCD(nil, nil, priv.N, lambda))
-
+	fmt.Println("gcd:", new(big.Int).GCD(nil, nil, priv.N, lambda))
 	fmt.Println("pt:", pt)
-	y := SQFProof(lambda, priv.N, x, true)
+
+	y := SQFProof(lambda, priv.N, x, true) // Not coprime, cant compute well
 	yn := new(big.Int).Exp(y, priv.N, priv.N)
-	fmt.Println("yn2:", yn)
+	fmt.Println("yn:", yn)
 }
 
 func TestProof2(t *testing.T) {
@@ -48,7 +50,6 @@ func TestProof2(t *testing.T) {
 	fmt.Println("Proof exists:", ok)
 
 	if ok {
-
 		fmt.Println("i:", i)
 		v := new(big.Int)
 		v.Exp(sq, big.NewInt(2), priv.N)

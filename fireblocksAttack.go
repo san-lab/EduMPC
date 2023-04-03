@@ -137,7 +137,6 @@ func HandlePM2AttMessage(mpcm *MPCMessage, ses *Session) {
 			fmt.Println(err)
 		}
 		st.V1 = msg.V
-		//st.AddShare = st.Priv.Decrytpt(msg.V)
 		st.rs, st.xs, st.x = FireblocksAttack(st.V, msg.V, st.Ps, st.Qs)
 		fmt.Println(msg.N.Cmp(st.AddShare))
 

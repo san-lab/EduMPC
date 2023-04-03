@@ -125,7 +125,7 @@ func PromptForNumber(label, def string) *big.Int {
 	v := new(big.Int)
 	for {
 		res, _ := pr.Run()
-		_, ok := v.SetString(res, 10) //TODO big int set string
+		_, ok := v.SetString(res, 10)
 		if ok {
 			return v
 		}

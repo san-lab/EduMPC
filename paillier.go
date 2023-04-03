@@ -29,6 +29,7 @@ func GenerateKeyPair(p, q *big.Int) (*PaillierPriv, *PaillierPub) {
 
 }
 
+// (P-1)(Q-1) and N should be coprimes
 func PaillierConstraint(P, Q *big.Int) bool {
 	N := new(big.Int).Mul(P, Q)
 	L := new(big.Int).Sub(P, One)
@@ -37,6 +38,7 @@ func PaillierConstraint(P, Q *big.Int) bool {
 	return L.Cmp(One) == 0
 }
 
+// P and Q such that P != 1 mod 8, Q != 1 mod 8, P != Q mod 8 and fundamental assumption of Paillier
 func GenerateNiceKeyPair(bits int) (*PaillierPriv, *PaillierPub) {
 	h1 := new(big.Int)
 	P := big.NewInt(9)
@@ -77,6 +79,7 @@ type PaillierPriv struct {
 	Q   *big.Int
 }
 
+// Enc = (N+1)^m * r^N mod N^2
 func (pub *PaillierPub) EncryptWithR(m, r *big.Int) *big.Int {
 	G := new(big.Int).Add(pub.N, One)
 	enc := new(big.Int).Exp(G, m, pub.N2)
@@ -87,6 +90,7 @@ func (pub *PaillierPub) EncryptWithR(m, r *big.Int) *big.Int {
 
 }
 
+// Smaple r such that r and N are coprimes
 func (pub *PaillierPub) Encrypt(m *big.Int) *big.Int {
 	r, err := rand.Int(rand.Reader, pub.N)
 	if err != nil {
@@ -99,10 +103,9 @@ func (pub *PaillierPub) Encrypt(m *big.Int) *big.Int {
 		}
 	}
 	return pub.EncryptWithR(m, r)
-
 }
 
-func (priv *PaillierPriv) Decrytpt(ct *big.Int) *big.Int {
+func (priv *PaillierPriv) Decrypt(ct *big.Int) *big.Int {
 	m := new(big.Int)
 	c := new(big.Int)
 	c.Exp(ct, priv.Lam, priv.N2)
@@ -126,15 +129,15 @@ func (pub *PaillierPub) EqModN(a, b *big.Int) bool {
 
 }
 
+// Malicious modulus N = p1 * (2p1 - 1) * p2 * (2p2 - 1) * ...
 func GenerateAttackKey(bits int) (*PaillierPriv, *PaillierPub, []*big.Int, []*big.Int) {
 	Pt := big.NewInt(1)
 	Qt := big.NewInt(1)
 	Ps := []*big.Int{}
 	Qs := []*big.Int{}
 	currbits := 0
-	for currbits < bits*2 {
+	for currbits < bits * 2 {
 		var P, Q *big.Int
-
 		Q = big.NewInt(4)
 		for !Q.ProbablyPrime(0) {
 			P, _ = rand.Prime(rand.Reader, 16)
@@ -163,16 +166,20 @@ func GenerateAttackKey(bits int) (*PaillierPriv, *PaillierPub, []*big.Int, []*bi
 
 }
 
+// Given random x, calculate x^(N^-1 mod lambda) mod N
+// An attacker would just randomize the result and hope it passes the verification
+// Note that N would have no inverse mod lambda if N is a malicious modulus
 func SQFProof(lambda *big.Int, N *big.Int, x *big.Int, bad bool) *big.Int {
 	M := new(big.Int)
 	if bad {
-		M = big.NewInt(3) //TODO random
+		M = big.NewInt(3) //TODO randomize
 	} else {
 		M = new(big.Int).ModInverse(N, lambda)
 	}
 	y := new(big.Int).Exp(x, M, N)
 	return y
 }
+
 
 func PPPProof(x *big.Int, P, Q *big.Int) (*big.Int, *big.Int, int, bool) {
 	rp := new(big.Int)
@@ -186,7 +193,6 @@ func PPPProof(x *big.Int, P, Q *big.Int) (*big.Int, *big.Int, int, bool) {
 		if rp != nil {
 			break
 		}
-
 	}
 	ok := (pi < 4)
 	return rp, xp, pi, ok
@@ -211,18 +217,17 @@ func SelPPPValue(x *big.Int, i int) *big.Int {
 }
 
 func PQModSqrt(x, P, Q *big.Int) *big.Int {
-
 	r1 := new(big.Int).ModSqrt(x, P)
-	if r1 == nil {
-		return r1
-	}
 	r2 := new(big.Int).ModSqrt(x, Q)
+	if r1 == nil {
+                return r1
+        }
+
 	if r2 == nil {
 		return r2
 	}
 
 	r, _ := crt([]*big.Int{r1, r2}, []*big.Int{P, Q})
-
 	return r
 }
 
@@ -234,6 +239,7 @@ func FireblocksAttack(aV *big.Int, V *big.Int, Ps, Qs []*big.Int) ([]*big.Int, [
 		cmq := new(big.Int).Mod(V, Qs[i])
 		r := new(big.Int).Exp(cmq, P1, Qs[i])
 		rs = append(rs, r)
+
 		//brute force attack
 		for x := big.NewInt(0); x.Cmp(Ps[i]) < 0; x.Add(x, One) {
 			if new(big.Int).Exp(aV, x, Qs[i]).Cmp(r) == 0 {
@@ -242,8 +248,6 @@ func FireblocksAttack(aV *big.Int, V *big.Int, Ps, Qs []*big.Int) ([]*big.Int, [
 			}
 		}
 	}
-	fmt.Println(rs)
-	fmt.Println(xs)
 	x, _ := crt(xs, Ps)
 	return rs, xs, x
 }
