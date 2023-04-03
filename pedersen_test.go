@@ -2,8 +2,8 @@ package main
 
 import (
 	"math/big"
-	"bytes"
-	"encoding/binary"
+//	"bytes"
+//	"encoding/binary"
 	"testing"
 	"fmt"
 )
@@ -11,59 +11,61 @@ import (
 
 func TestPedersen(t *testing.T) {
 	fmt.Println("-----------------")
-	Setup()
+	Setup(Zero)
 
-        v := []byte("010101value")
-        r, C := Commit(v)
-        fmt.Println("Verify?: ", VerifyCommitment(v, r, C))
+        v := big.NewInt(33)
+        r, C := Commit(v.Bytes())
+        fmt.Println("Verify?: ", VerifyCommitment(v.Bytes(), r, C))
 }
 
-func TestBytesInt(t *testing.T){
-//	myInt := []byte{0, 0, 0, 0, 0, 0, 1, 245}
-//	myInt := []byte{149, 117, 141, 137, 115, 160, 20, 83}
-//	v := int64(binary.BigEndian.Uint64(myInt))
-//	fmt.Println("v:", v)
-//	e := 10769669705416315987 - 7677074368293235629
-//	fmt.Println(e)
-//	fmt.Println(secp256r1.Params().P)
+func TestSumPedersen(t *testing.T) {
+	fmt.Println("-----------------")
+        Setup(Zero)
+
+        v1 := big.NewInt(33)
+        r1, C1 := Commit(v1.Bytes())
+        fmt.Println("Verify v1?: ", VerifyCommitment(v1.Bytes(), r1, C1))
+
+	v2 := big.NewInt(101)
+	r2, C2 := Commit(v2.Bytes())
+        fmt.Println("Verify v2?: ", VerifyCommitment(v2.Bytes(), r2, C2))
+
+	v3 := new(big.Int).Add(v1, v2)
+        r1_big := new(big.Int).SetBytes(r1)
+	r2_big := new(big.Int).SetBytes(r2)
+	r3 := new(big.Int).Add(r1_big, r2_big).Bytes()
+	C3X, C3Y := secp256r1.Add(C1.X, C1.Y, C2.X, C2.Y)
+        C3 := &ECPoint{X: C3X, Y: C3Y}
+	fmt.Println("Verify v3?: ", VerifyCommitment(v3.Bytes(), r3, C3))
+
 }
+
 
 // Since H = kG
 // dishonest prover can set v to fake_v
-// and r to fake_r = r + k * v - k * fake_v
+// and r to fake_r = r + k * (v - fake_v)
 // and still pass the test
 func TestEvilPedersen(t *testing.T) {
 	fmt.Println("-----------------")
-        Setup()
+        Setup(big.NewInt(13))
 
-        v := []byte{0,0,0,0,0,0,1,1}
-        r, C := Commit(v)
-        fmt.Println("Verify?: ", VerifyCommitment(v, r, C))
+  	v := big.NewInt(12100)
+        r, C := Commit(v.Bytes())
+        fmt.Println("Verify?: ", VerifyCommitment(v.Bytes(), r, C))
 
 	// Craft fake_v
-	k := int64(2)
-	fake_v := []byte{0,0,0,0,0,0,0,1}
-	fake_v_int := int64(binary.BigEndian.Uint64(fake_v))
-	v_int := int64(binary.BigEndian.Uint64(v))
-	r_int := int64(binary.BigEndian.Uint64(r))
-	fake_r_int := r_int + k * v_int - k * fake_v_int
-	fmt.Println("fake_v, v, r, fake_r:", fake_v_int, v_int, r_int, fake_r_int)
+	fake_v := big.NewInt(3390)
 
-	fake_r_bigint := new(big.Int).Mod(big.NewInt(fake_r_int), secp256r1.Params().P)
-	fmt.Println("fake_r_int mod p bigint:", fake_r_bigint)
-	fake_r_int = fake_r_bigint.Int64()
-	fmt.Println("fake_r_int:", fake_r_int)
+	r_big := new(big.Int).SetBytes(r)
 
-	fake_r := new(bytes.Buffer) //make([]byte, 100)
-	err := binary.Write(fake_r, binary.BigEndian, fake_r_int)
-	fmt.Println("err:", err)
-	fmt.Println("bytes.Buffer:", fake_r)
-	fake_r_bytes := make([]byte, 8)
-	fake_r.Read(fake_r_bytes)
-	fmt.Println("fake_r []byte:", fake_r_bytes)
-	fake_r_int2 := int64(binary.BigEndian.Uint64(fake_r_bytes))
-	fmt.Println("fake_r_int:", fake_r_int2)
+	difv := new(big.Int).Sub(v, fake_v)
+	kdifv := new(big.Int).Mul(K, difv)
+	fake_r := new(big.Int).Add(r_big, kdifv)
+	fake_r.Mod(fake_r, secp256r1.Params().N)
 
-        fmt.Println("EvilVerify?: ", VerifyCommitment(fake_v, fake_r_bytes, C))
+	fmt.Println("fake_r_int mod N bigint:", fake_r)
+	fmt.Println("fake_r_bigint_bytes:", fake_r.Bytes())
+
+        fmt.Println("EvilVerify?: ", VerifyCommitment(fake_v.Bytes(), fake_r.Bytes(), C))
 }
 

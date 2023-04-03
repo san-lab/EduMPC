@@ -2,13 +2,14 @@ package main
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"fmt"
 	"math/big"
 )
 
 var Zero = big.NewInt(0)
 var One = big.NewInt(1)
-var Seven = big.NewInt(7)
+//var Seven = big.NewInt(7)
 var Eight = big.NewInt(8)
 
 // Returns a key pair. The arguments p and q are *assumed* to be primes of equal length
@@ -169,33 +170,71 @@ func GenerateAttackKey(bits int) (*PaillierPriv, *PaillierPub, []*big.Int, []*bi
 // Given random x, calculate x^(N^-1 mod lambda) mod N
 // An attacker would just randomize the result and hope it passes the verification
 // Note that N would have no inverse mod lambda if N is a malicious modulus
-func SQFProof(lambda *big.Int, N *big.Int, x *big.Int, bad bool) *big.Int {
-	M := new(big.Int)
-	if bad {
-		M = big.NewInt(3) //TODO randomize
-	} else {
-		M = new(big.Int).ModInverse(N, lambda)
+func SQFProof(lambda *big.Int, N *big.Int, evil bool) *big.Int {
+	if evil {
+		return big.NewInt(17) //TODO randomize, less than N, coprime with N
 	}
+
+	// Fiat-Shamir: challenge = hash(inputs)
+	x_bytes := sha256.Sum256(N.Bytes())
+	x := new(big.Int).SetBytes(x_bytes[:])
+
+	M := new(big.Int).ModInverse(N, lambda)
 	y := new(big.Int).Exp(x, M, N)
 	return y
 }
 
 
-func PPPProof(x *big.Int, P, Q *big.Int) (*big.Int, *big.Int, int, bool) {
-	rp := new(big.Int)
-	pi := 0
-	//qi := 0
-	xp := new(big.Int)
-	//xq := new(big.Int).Set(x)
-	for ; pi < 4; pi++ {
-		xp = SelPPPValue(x, pi)
-		rp = PQModSqrt(xp, P, Q)
-		if rp != nil {
-			break
+func PPPProof(N, P, Q *big.Int, s int, evil bool) ([]*big.Int, []*big.Int, []int, bool) {
+	rps := []*big.Int{}
+	xps := []*big.Int{}
+	pis := []int{}
+	ok := true
+
+	if evil {
+		for i := 0; i < s; i++ {
+			random := new(big.Int)
+			for {
+				b := make([]byte, N.Int64())
+				rand.Read(b)
+				random.SetBytes(b)
+				if new(big.Int).GCD(nil, nil, random, N).Cmp(One) == 0 {
+					break
+				}
+			}
+			rps = append(rps, random)
+			// we dont care about the other params, just setting them to not re-do the tests...
+			xps = append(xps, Zero)
+			pis = append(pis, 0)
 		}
+		return rps, xps, pis, ok
 	}
-	ok := (pi < 4)
-	return rp, xp, pi, ok
+
+	h := new(big.Int).Set(N)
+	for i := 0; i < s; i++ {
+		// Fiat-Shamir: challenge = hash(inputs)
+		x_bytes := sha256.Sum256(h.Bytes())
+		x := new(big.Int).SetBytes(x_bytes[:])
+
+		rp := new(big.Int)
+		pi := 0
+		//qi := 0
+		xp := new(big.Int)
+		//xq := new(big.Int).Set(x)
+		for ; pi < 4; pi++ {
+			xp = SelPPPValue(x, pi)
+			rp = PQModSqrt(xp, P, Q)
+			if rp != nil {
+				break
+			}
+		}
+		rps = append(rps, rp)
+		xps = append(xps, xp)
+		pis = append(pis, pi)
+		ok = ok && (pi < 4)
+		h.Add(h, One)
+	}
+	return rps, xps, pis, ok
 }
 
 func SelPPPValue(x *big.Int, i int) *big.Int {

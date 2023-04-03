@@ -63,7 +63,7 @@ func InitNewPM2Att(mpcn *MPCNode) {
 	ses := NewSenderPM2AttSession(mpcn, sid)
 	st := (ses.State).(*PM2AttState)
 
-	st.MulShare = PromptForNumber("Attack value:", "4")
+	st.MulShare = PromptForNumber("Attack value", "4")
 
 	b := PromptForNumber("Bits for primes:", "256")
 	bits := int(b.Int64())

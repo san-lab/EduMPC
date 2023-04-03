@@ -4,8 +4,8 @@ import (
 	"crypto/sha256"
 	"math/big"
 	"crypto/elliptic"
-//	"crypto/rand"
-	"fmt"
+	"crypto/rand"
+//	"fmt"
 )
 
 // Public parameters
@@ -14,7 +14,9 @@ var A_string = "FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFC
 var B_string = "5AC635D8AA3A93E7B3EBBD55769886BC651D06B0CC53B0F63BCE3C3E27D2604B"
 var G = &ECPoint{X: secp256r1.Params().Gx, Y: secp256r1.Params().Gy}
 var H *ECPoint
-
+// H = KG
+var K = big.NewInt(13)
+var blinding_bits = 100000000
 
 // y^2 = x^3 + Ax + B
 func EvalP256(x *big.Int) *big.Int {
@@ -31,24 +33,23 @@ func EvalP256(x *big.Int) *big.Int {
 
 
 // Pick second generator based on a public, agreed-upon method (hash(G) for example)
-func Setup(){
+func Setup(evil *big.Int){
 	Hx := new(big.Int)
 	Hy := new(big.Int)
 	AuxGX := new(big.Int)
 	AuxGX.Set(G.X)
 	for {
-		Hx_hash := sha256.Sum256(AuxGX.Bytes()) // May need to do mod P
-		fmt.Println("Hx_hash:", Hx_hash[:])
+		Hx_hash := sha256.Sum256(AuxGX.Bytes())
 		Hx = new(big.Int).SetBytes(Hx_hash[:])
-		fmt.Println("Hx:", Hx)
-		Hx.Mod(Hx, secp256r1.Params().P)
-		fmt.Println("Hx mod P:", Hx)
+		Hx.Mod(Hx, secp256r1.Params().P) // Here it IS mod P
 
 		Hy = EvalP256(Hx)
-		// Testing evil input...
-//		Hx, Hy = secp256r1.ScalarMult(G.X, G.Y, []byte{2})
 
-		fmt.Println("Hx, Hy:", Hx, Hy)
+		// Testing evil input...
+		if (evil.Cmp(big.NewInt(0)) != 0) {
+			Hx, Hy = secp256r1.ScalarMult(G.X, G.Y, evil.Bytes())
+		}
+
 		if Hy != nil && secp256r1.IsOnCurve(Hx, Hy) {
 			break
 		}
@@ -59,9 +60,9 @@ func Setup(){
 
 // Commitment C = rG + vH
 func Commit(v []byte) ([]byte, *ECPoint) {
-	// r := make([]byte, 10) // Size should be log2(order of the underlying field) ??
-	// rand.Read(r)
-	r := []byte{0, 0, 0, 0, 0, 0, 0, 123}
+	r := make([]byte, blinding_bits)
+	rand.Read(r)
+	//r := []byte{0, 0, 0, 0, 0, 0, 0, 123}
 
 	rGx, rGy := secp256r1.ScalarMult(G.X, G.Y, r)
 	vHx, vHy := secp256r1.ScalarMult(H.X, H.Y, v)
@@ -75,7 +76,7 @@ func Reveal() {
 	// return r, v
 }
 
-// Check whether  C = rG + vH
+// Check wether C = rG + vH
 func VerifyCommitment(v []byte, r []byte, C *ECPoint) bool {
 	rGx, rGy := secp256r1.ScalarMult(G.X, G.Y, r)
         vHx, vHy := secp256r1.ScalarMult(H.X, H.Y, v)
