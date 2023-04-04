@@ -193,11 +193,13 @@ func PPPProof(N, P, Q *big.Int, s int, evil bool) ([]*big.Int, []*big.Int, []int
 
 	if evil {
 		for i := 0; i < s; i++ {
+			// Smaple random int in Z_n^*
 			random := new(big.Int)
 			for {
-				b := make([]byte, N.Int64())
+				b := make([]byte, 1000) // size ? N.Int64() ?
 				rand.Read(b)
 				random.SetBytes(b)
+				random.Mod(random, N)
 				if new(big.Int).GCD(nil, nil, random, N).Cmp(One) == 0 {
 					break
 				}

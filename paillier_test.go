@@ -9,7 +9,7 @@ import (
 )
 
 func TestProofSQF(t *testing.T) {
-	fmt.Println("---------------")
+	fmt.Println("--------------- SQF PROOF ----------------")
 	// Prover
 	priv, pub := GenerateNiceKeyPair(1024)
 	fmt.Println("gcd:", new(big.Int).GCD(nil, nil, priv.N, priv.Lam))
@@ -26,7 +26,7 @@ func TestProofSQF(t *testing.T) {
 }
 
 func TestBadProofSQF(t *testing.T) {
-	fmt.Println("----------------")
+	fmt.Println("---------------- SQF BAD PROOF ----------------")
 	priv, pub, ps, qs := GenerateAttackKey(1024)
 
 	lambda := big.NewInt(1)
@@ -54,9 +54,9 @@ func TestBadProofSQF(t *testing.T) {
 }
 
 func TestProofPPP(t *testing.T) {
-	sec := 2
+	sec := 3
 
-	fmt.Println("----------------")
+	fmt.Println("---------------- PPP PROOF ----------------")
 	priv, pub := GenerateNiceKeyPair(256)
 
 	sqs, sq2s, is, ok := PPPProof(priv.N, priv.P, priv.Q, sec, false)
@@ -108,3 +108,43 @@ func TestProofPPP(t *testing.T) {
 	fmt.Println("P-Q mod 8: ", new(big.Int).Mod(new(big.Int).Add(priv.P, new(big.Int).Neg(priv.Q)), Eight))
 }
 
+
+func TestBadProofPPP(t *testing.T) {
+        sec := 5
+
+        fmt.Println("---------------- PPP BAD PROOF ----------------")
+        priv, pub := GenerateNiceKeyPair(256)
+
+        sqs, sq2s, is, ok := PPPProof(pub.N, priv.P, priv.Q, sec, true)
+        fmt.Println("Proof exists:", ok, len(sqs) == len(sq2s))
+        if !ok {
+                return
+        }
+
+        h := new(big.Int).Set(pub.N)
+        for j, _ := range(sqs) {
+                fmt.Println("iter:", j)
+                fmt.Println("i:", is[j])
+                v := new(big.Int).Exp(sqs[j], big.NewInt(2), pub.N)
+                fmt.Println("sq:", sqs[j])
+		fmt.Println("gcd sq, N:", new(big.Int).GCD(nil, nil, sqs[j], pub.N))
+		fmt.Println("v:", v)
+                fmt.Println("sq2s:", sq2s[j])
+                // Verifier should check that sqs2 is x, -x, 2x, or -2x
+                // Fiat-Shamir
+                x_bytes := sha256.Sum256(h.Bytes())
+                x := new(big.Int).SetBytes(x_bytes[:])
+                if v.Cmp(new(big.Int).Mod(x, pub.N)) == 0 {
+                        fmt.Println("Passes verification x")
+                } else if v.Cmp(new(big.Int).Mod(new(big.Int).Neg(x), pub.N)) == 0 {
+                        fmt.Println("Passes verification -x")
+                } else if v.Cmp(new(big.Int).Mod(new(big.Int).Add(x, x), pub.N)) == 0 {
+                        fmt.Println("Passes verification 2x")
+                } else if v.Cmp(new(big.Int).Mod(new(big.Int).Neg(new(big.Int).Add(x, x)), pub.N)) == 0 {
+                        fmt.Println("Passes verification -2x")
+                } else {
+                        fmt.Println("Wrong square")
+                }
+                h.Add(h, One)
+        }
+}

@@ -10,7 +10,7 @@ import (
 
 
 func TestPedersen(t *testing.T) {
-	fmt.Println("-----------------")
+	fmt.Println("----------------- PEDERSEN ----------------")
 	Setup(Zero)
 
         v := big.NewInt(33)
@@ -19,7 +19,7 @@ func TestPedersen(t *testing.T) {
 }
 
 func TestSumPedersen(t *testing.T) {
-	fmt.Println("-----------------")
+	fmt.Println("----------------- PEDERSEN SUM ----------------")
         Setup(Zero)
 
         v1 := big.NewInt(33)
@@ -46,7 +46,7 @@ func TestSumPedersen(t *testing.T) {
 // and r to fake_r = r + k * (v - fake_v)
 // and still pass the test
 func TestEvilPedersen(t *testing.T) {
-	fmt.Println("-----------------")
+	fmt.Println("----------------- BAD PEDERSEN ----------------")
         Setup(big.NewInt(13))
 
   	v := big.NewInt(12100)
