@@ -196,10 +196,11 @@ func PPPProof(N, P, Q *big.Int, s int, evil bool) ([]*big.Int, []*big.Int, []int
 			// Smaple random int in Z_n^*
 			random := new(big.Int)
 			for {
-				b := make([]byte, 1000) // size ? N.Int64() ?
-				rand.Read(b)
-				random.SetBytes(b)
-				random.Mod(random, N)
+//				b := make([]byte, 1000) // size ? N.Int64() ?
+//				rand.Read(b)
+//				random.SetBytes(b)
+				random, _ = rand.Int(rand.Reader, N)
+//				random.Mod(random, N)
 				if new(big.Int).GCD(nil, nil, random, N).Cmp(One) == 0 {
 					break
 				}
@@ -256,6 +257,68 @@ func SelPPPValue(x *big.Int, i int) *big.Int {
 	}
 	return ret
 }
+
+//n_, h1, h2 sent by  verifier. We assume theyre well-formed
+func RangeProof(N, N2, n_, h1, h2 *big.Int) (*big.Int, *big.Int, *big.Int, *big.Int, *big.Int, *big.Int, *big.Int, *big.Int) {
+	// Prover setup
+	G := new(big.Int).Add(N, One)
+        q := secp256r1.Params().N
+        q3 := new(big.Int).Exp(q, big.NewInt(3), nil)
+	qn_ := new(big.Int).Mul(q, n_)
+        q3n_ := new(big.Int).Mul(q3, n_)
+
+        m := big.NewInt(33) // < q
+	r, _ := rand.Int(rand.Reader, N)
+	for new(big.Int).GCD(nil, nil, r, N).Cmp(One) != 0 {
+		r, _ = rand.Int(rand.Reader, N)
+        }
+	pub := &PaillierPub{N: N, N2: N2}
+	c := pub.EncryptWithR(m, r)
+
+	// Step 1
+        alpha, _ := rand.Int(rand.Reader, q3)
+        beta, _ := rand.Int(rand.Reader, N)
+        for new(big.Int).GCD(nil, nil, beta, N).Cmp(One) != 0 {
+                beta, _ = rand.Int(rand.Reader, N)
+        }
+        gamma, _ := rand.Int(rand.Reader, q3n_)
+	rho, _ := rand.Int(rand.Reader, qn_)
+
+	// Step 2
+	z0 := new(big.Int).Exp(h1, m, n_)
+	z1 := new(big.Int).Exp(h2, rho, n_)
+	z := new(big.Int).Mul(z0, z1)
+	z.Mod(z, n_)
+
+	u0 := new(big.Int).Exp(G, alpha, N2)
+        u1 := new(big.Int).Exp(beta, N, N2)
+        u := new(big.Int).Mul(u0, u1)
+        u.Mod(u, N2)
+
+        w0 := new(big.Int).Exp(h1, alpha, n_)
+        w1 := new(big.Int).Exp(h2, gamma, n_)
+        w := new(big.Int).Mul(w0, w1)
+        w.Mod(w, n_)
+
+	// Fiat-Shamir e = hash(z, u, w)
+	zuw := append(append(z.Bytes(), u.Bytes()...), w.Bytes()...)
+	e_bytes := sha256.Sum256(zuw)
+	e := new(big.Int).SetBytes(e_bytes[:])
+
+	// Step 3
+	s := new(big.Int).Exp(r, e, N)
+	s.Mul(s, beta)
+	s.Mod(s, N)
+
+	s1 := new(big.Int).Mul(e, m)
+	s1.Add(s1, alpha)
+
+	s2 := new(big.Int).Mul(e, rho)
+	s2.Add(s2, gamma)
+
+	return z, u, w, s, s1, s2, c, q3
+}
+
 
 func PQModSqrt(x, P, Q *big.Int) *big.Int {
 	r1 := new(big.Int).ModSqrt(x, P)

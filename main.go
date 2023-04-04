@@ -11,7 +11,10 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
+//	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/p2p/discovery/mdns"
+
+//	"github.com/multiformats/go-multiaddr"
 )
 
 // DiscoveryInterval is how often we re-publish our mDNS records.
@@ -34,7 +37,12 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
+// Check our full address
+/*
+        for _, la := range h.Addrs() {
+		fmt.Printf(" - %v\n", la)
+	}
+*/
 	// create a new PubSub service using the GossipSub router
 	ps, err := pubsub.NewGossipSub(ctx, h)
 	if err != nil {
@@ -51,6 +59,27 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+// Connect directly
+/*
+	destination := "/ip4/172.16.6.7/tcp/37717/p2p/12D3KooWN2DFTjTqcDJPvEjZ5p9gkFem29hetzP8CLFdtPRBUAUd"
+
+	// Turn the destination into a multiaddr.
+	maddr, err := multiaddr.NewMultiaddr(destination)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// Extract the peer ID from the multiaddr.
+	info, err := peer.AddrInfoFromP2pAddr(maddr)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// Add the destination's peer multiaddress in the peerstore.
+	// This will be used during connection and stream creation by libp2p.
+	h.Peerstore().AddAddrs(info.ID, info.Addrs, peerstore.PermanentAddrTTL)
+*/
 
 	TopUI(mpcn)
 }
