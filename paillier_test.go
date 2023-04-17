@@ -171,7 +171,7 @@ func TestRangeProof(t *testing.T) {
 		h2, _ = rand.Int(rand.Reader, n_)
 	}
 
-	z, u, w, s, s1, s2, c, q3 := RangeProof(N, N2, n_, h1, h2)
+	z, u, w, s, s1, s2, c, q3 := RangeProof(N, N2, n_, h1, h2, true)
 
 	// Fiat-Shamir e = hash(z, u, w)
 	zuw := append(append(z.Bytes(), u.Bytes()...), w.Bytes()...)
@@ -196,6 +196,6 @@ func TestRangeProof(t *testing.T) {
         c3.Mul(c3, c3_2)
         c3.Mod(c3, n_)
         ver3 := w.Cmp(c3) == 0
-	fmt.Println("Verification: ", ver1, ver2, ver3)
 
+	fmt.Println("Verification: ", ver1, ver2, ver3)
 }

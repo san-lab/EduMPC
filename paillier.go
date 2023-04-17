@@ -259,7 +259,7 @@ func SelPPPValue(x *big.Int, i int) *big.Int {
 }
 
 //n_, h1, h2 sent by  verifier. We assume theyre well-formed
-func RangeProof(N, N2, n_, h1, h2 *big.Int) (*big.Int, *big.Int, *big.Int, *big.Int, *big.Int, *big.Int, *big.Int, *big.Int) {
+func RangeProof(N, N2, n_, h1, h2 *big.Int, evil bool) (*big.Int, *big.Int, *big.Int, *big.Int, *big.Int, *big.Int, *big.Int, *big.Int) {
 	// Prover setup
 	G := new(big.Int).Add(N, One)
         q := secp256r1.Params().N
@@ -268,6 +268,10 @@ func RangeProof(N, N2, n_, h1, h2 *big.Int) (*big.Int, *big.Int, *big.Int, *big.
         q3n_ := new(big.Int).Mul(q3, n_)
 
         m := big.NewInt(33) // < q
+	if evil {
+		m.Add(m, q3) // m > q^3 should fail the proof
+		fmt.Println("m bigger q3?:", m.Cmp(q3))
+	}
 	r, _ := rand.Int(rand.Reader, N)
 	for new(big.Int).GCD(nil, nil, r, N).Cmp(One) != 0 {
 		r, _ = rand.Int(rand.Reader, N)
