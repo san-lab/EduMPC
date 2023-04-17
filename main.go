@@ -27,7 +27,7 @@ var MPCNET string
 
 func main() {
 	// parse some flags
-	MPCNET = *flag.String("mpcnet", "DEFMPCNET", "name of chat room to join")
+	MPCNET = *flag.String("mpcnet", "test", "name of chat room to join")
 	flag.Parse()
 
 	ctx := context.Background()
@@ -38,11 +38,11 @@ func main() {
 		panic(err)
 	}
 // Check our full address
-/*
+
         for _, la := range h.Addrs() {
 		fmt.Printf(" - %v\n", la)
 	}
-*/
+
 	// create a new PubSub service using the GossipSub router
 	ps, err := pubsub.NewGossipSub(ctx, h)
 	if err != nil {

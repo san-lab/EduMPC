@@ -34,13 +34,32 @@ const response = Command("response")
 
 // MPCMessage gets converted to/from JSON and sent in the body of pubsub messages.
 type MPCMessage struct {
-	Message   []byte
-	Protocol  Protocol
-	Command   Command
-	SenderID  string
-	SessionID string
-	To        string // peer.ID, to be used when targetting a specific peer
+	Message   []byte     `json:"Message"` 
+	Protocol  Protocol   `json:"Protocol"`
+	Command   Command    `json:"Command"`
+	SenderID  string     `json:"SenderID"`
+	SessionID string     `json:"SessionID"`
+	To        string     `json:"To"`        // peer.ID, to be used when targetting a specific peer
 }
+
+
+type MPCMessage2 struct {
+//      Message   json.RawMessage     `json:"Message"`
+//  	Message   AuxMessage `json:"Message"`
+	Message   string     `json:"Message"`
+	Protocol  Protocol   `json:"Protocol"`
+        Command   Command    `json:"Command"`
+        SenderID  string     `json:"SenderID"`
+        SessionID string     `json:"SessionID"`
+        To        string     `json:"To"`        // peer.ID, to be used when targetting a specific peer
+}
+
+/*
+type AuxMessage struct {
+	Type string           `json:"type"`
+	Data json.RawMessage  `json:"data"`
+}
+*/
 
 // readLoop pulls messages from the pubsub topic and pushes them onto the Messages channel.
 func (mpcn *MPCNode) readLoop() {
@@ -56,11 +75,25 @@ func (mpcn *MPCNode) readLoop() {
 		}
 
 		mpcn.ProcessMessage(msg)
-
 	}
 }
 
 func (mpcn *MPCNode) ProcessMessage(msg *pubsub.Message) {
+	mpcTestmsg := new(MPCMessage2)
+	err1 := json.Unmarshal(msg.Data, mpcTestmsg)
+        if err1 != nil {
+                fmt.Println("Bad1:", err1)
+        }
+	fmt.Println("m1:", mpcTestmsg)
+	fmt.Println("m1.Message:", mpcTestmsg.Message)
+//	fmt.Println("m1.Message.Data:", mpcTestmsg.Message.Data)
+//	fmt.Println("m1.Message.Data string:", string(mpcTestmsg.Message.Data))
+
+	mpcmsg_test := MPCMessage{Message: []byte(mpcTestmsg.Message), Protocol: mpcTestmsg.Protocol, Command: mpcTestmsg.Command, 
+		SenderID: mpcTestmsg.SenderID, SessionID: mpcTestmsg.SessionID, To: mpcTestmsg.To}
+	fmt.Println("mpcmsg_test:", mpcmsg_test)
+
+
 	if mpcn.sessions == nil {
 		mpcn.sessions = map[string]*Session{}
 	}
@@ -69,7 +102,7 @@ func (mpcn *MPCNode) ProcessMessage(msg *pubsub.Message) {
 	if err != nil {
 		fmt.Println("Bad frame:", err)
 		return
-	}
+	}	
 	var session *Session
 	var ok bool
 	session, ok = mpcn.sessions[mpcmsg.SessionID]
