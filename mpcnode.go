@@ -34,24 +34,23 @@ const response = Command("response")
 
 // MPCMessage gets converted to/from JSON and sent in the body of pubsub messages.
 type MPCMessage struct {
-	Message   []byte     `json:"Message"` 
-	Protocol  Protocol   `json:"Protocol"`
-	Command   Command    `json:"Command"`
-	SenderID  string     `json:"SenderID"`
-	SessionID string     `json:"SessionID"`
-	To        string     `json:"To"`        // peer.ID, to be used when targetting a specific peer
+	Message   []byte   `json:"Message"`
+	Protocol  Protocol `json:"Protocol"`
+	Command   Command  `json:"Command"`
+	SenderID  string   `json:"SenderID"`
+	SessionID string   `json:"SessionID"`
+	To        string   `json:"To"` // peer.ID, to be used when targetting a specific peer
 }
 
-
-type MPCMessage2 struct {
-//      Message   json.RawMessage     `json:"Message"`
-//  	Message   AuxMessage `json:"Message"`
-	Message   string     `json:"Message"`
-	Protocol  Protocol   `json:"Protocol"`
-        Command   Command    `json:"Command"`
-        SenderID  string     `json:"SenderID"`
-        SessionID string     `json:"SessionID"`
-        To        string     `json:"To"`        // peer.ID, to be used when targetting a specific peer
+type MPCMessage_fix struct {
+	//      Message   json.RawMessage     `json:"Message"`
+	//  	Message   AuxMessage `json:"Message"`
+	Message   string   `json:"Message"`
+	Protocol  Protocol `json:"Protocol"`
+	Command   Command  `json:"Command"`
+	SenderID  string   `json:"SenderID"`
+	SessionID string   `json:"SessionID"`
+	To        string   `json:"To"` // peer.ID, to be used when targetting a specific peer
 }
 
 /*
@@ -79,30 +78,17 @@ func (mpcn *MPCNode) readLoop() {
 }
 
 func (mpcn *MPCNode) ProcessMessage(msg *pubsub.Message) {
-	mpcTestmsg := new(MPCMessage2)
-	err1 := json.Unmarshal(msg.Data, mpcTestmsg)
-        if err1 != nil {
-                fmt.Println("Bad1:", err1)
-        }
-	fmt.Println("m1:", mpcTestmsg)
-	fmt.Println("m1.Message:", mpcTestmsg.Message)
-//	fmt.Println("m1.Message.Data:", mpcTestmsg.Message.Data)
-//	fmt.Println("m1.Message.Data string:", string(mpcTestmsg.Message.Data))
-
-	mpcmsg_test := MPCMessage{Message: []byte(mpcTestmsg.Message), Protocol: mpcTestmsg.Protocol, Command: mpcTestmsg.Command, 
-		SenderID: mpcTestmsg.SenderID, SessionID: mpcTestmsg.SessionID, To: mpcTestmsg.To}
-	fmt.Println("mpcmsg_test:", mpcmsg_test)
-
-
 	if mpcn.sessions == nil {
 		mpcn.sessions = map[string]*Session{}
 	}
-	mpcmsg := new(MPCMessage)
-	err := json.Unmarshal(msg.Data, mpcmsg)
+	input := new(MPCMessage_fix) // Parse input message with Message field as string and plug it into our good old "Message []byte" struct
+	err := json.Unmarshal(msg.Data, input)
+	mpcmsg := &MPCMessage{Message: []byte(input.Message), Protocol: input.Protocol, Command: input.Command, SenderID: input.SenderID, SessionID: input.SessionID, To: input.To}
+
 	if err != nil {
 		fmt.Println("Bad frame:", err)
 		return
-	}	
+	}
 	var session *Session
 	var ok bool
 	session, ok = mpcn.sessions[mpcmsg.SessionID]
@@ -117,7 +103,11 @@ func (mpcn *MPCNode) Respond(mpcmsg *MPCMessage, ses *Session) {
 	mpcmsg.SenderID = mpcn.self.String()
 	mpcmsg.SessionID = ses.ID
 	ses.History = append(ses.History, mpcmsg)
-	b, _ := json.Marshal(mpcmsg)
+
+	// Just before publish we turn the Message []byte to string for compatibility with js
+	mpcmsg_fix := &MPCMessage_fix{Message: string(mpcmsg.Message), Protocol: mpcmsg.Protocol, Command: mpcmsg.Command, SenderID: mpcmsg.SenderID, SessionID: mpcmsg.SessionID, To: mpcmsg.To}
+
+	b, _ := json.Marshal(mpcmsg_fix)
 	mpcn.topic.Publish(context.Background(), b)
 
 }
