@@ -1,4 +1,4 @@
-package main
+package edumpc
 
 import (
 	"crypto/rand"
@@ -136,7 +136,7 @@ func GenerateAttackKey(bits int) (*PaillierPriv, *PaillierPub, []*big.Int, []*bi
 	Ps := []*big.Int{}
 	Qs := []*big.Int{}
 	currbits := 0
-	for currbits < bits * 2 {
+	for currbits < bits*2 {
 		var P, Q *big.Int
 		Q = big.NewInt(4)
 		for !Q.ProbablyPrime(0) {
@@ -180,7 +180,6 @@ func SQFProof(lambda *big.Int, N *big.Int, x *big.Int, bad bool) *big.Int {
 	return y
 }
 
-
 func PPPProof(x *big.Int, P, Q *big.Int) (*big.Int, *big.Int, int, bool) {
 	rp := new(big.Int)
 	pi := 0
@@ -220,8 +219,8 @@ func PQModSqrt(x, P, Q *big.Int) *big.Int {
 	r1 := new(big.Int).ModSqrt(x, P)
 	r2 := new(big.Int).ModSqrt(x, Q)
 	if r1 == nil {
-                return r1
-        }
+		return r1
+	}
 
 	if r2 == nil {
 		return r2

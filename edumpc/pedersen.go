@@ -1,10 +1,11 @@
-package main
+package edumpc
 
 import (
+	"crypto/elliptic"
 	"crypto/sha256"
 	"math/big"
-	"crypto/elliptic"
-//	"crypto/rand"
+
+	//	"crypto/rand"
 	"fmt"
 )
 
@@ -15,23 +16,21 @@ var B_string = "5AC635D8AA3A93E7B3EBBD55769886BC651D06B0CC53B0F63BCE3C3E27D2604B
 var G = &ECPoint{X: secp256r1.Params().Gx, Y: secp256r1.Params().Gy}
 var H *ECPoint
 
-
 // y^2 = x^3 + Ax + B
 func EvalP256(x *big.Int) *big.Int {
-        A, _ := new(big.Int).SetString(A_string, 16)
-        B, _ := new(big.Int).SetString(B_string, 16)
+	A, _ := new(big.Int).SetString(A_string, 16)
+	B, _ := new(big.Int).SetString(B_string, 16)
 
 	x3 := new(big.Int).Exp(x, big.NewInt(3), secp256r1.Params().P)
-        Ax := new(big.Int).Mul(A, x)
-        x3plusAx := new(big.Int).Add(x3, Ax)
-        y2 := new(big.Int).Add(x3plusAx, B)
-        y := new(big.Int).ModSqrt(y2, secp256r1.Params().P)
+	Ax := new(big.Int).Mul(A, x)
+	x3plusAx := new(big.Int).Add(x3, Ax)
+	y2 := new(big.Int).Add(x3plusAx, B)
+	y := new(big.Int).ModSqrt(y2, secp256r1.Params().P)
 	return y
 }
 
-
 // Pick second generator based on a public, agreed-upon method (hash(G) for example)
-func Setup(){
+func Setup() {
 	Hx := new(big.Int)
 	Hy := new(big.Int)
 	AuxGX := new(big.Int)
@@ -46,7 +45,7 @@ func Setup(){
 
 		Hy = EvalP256(Hx)
 		// Testing evil input...
-//		Hx, Hy = secp256r1.ScalarMult(G.X, G.Y, []byte{2})
+		//		Hx, Hy = secp256r1.ScalarMult(G.X, G.Y, []byte{2})
 
 		fmt.Println("Hx, Hy:", Hx, Hy)
 		if Hy != nil && secp256r1.IsOnCurve(Hx, Hy) {
@@ -66,6 +65,7 @@ func Commit(v []byte) ([]byte, *ECPoint) {
 	rGx, rGy := secp256r1.ScalarMult(G.X, G.Y, r)
 	vHx, vHy := secp256r1.ScalarMult(H.X, H.Y, v)
 	Cx, Cy := secp256r1.Add(rGx, rGy, vHx, vHy)
+	new(big.Int).Bytes()
 	C := ECPoint{X: Cx, Y: Cy}
 	return r, &C
 }
@@ -78,10 +78,10 @@ func Reveal() {
 // Check whether  C = rG + vH
 func VerifyCommitment(v []byte, r []byte, C *ECPoint) bool {
 	rGx, rGy := secp256r1.ScalarMult(G.X, G.Y, r)
-        vHx, vHy := secp256r1.ScalarMult(H.X, H.Y, v)
-        Cx, Cy := secp256r1.Add(rGx, rGy, vHx, vHy)
+	vHx, vHy := secp256r1.ScalarMult(H.X, H.Y, v)
+	Cx, Cy := secp256r1.Add(rGx, rGy, vHx, vHy)
 	if Cx.Cmp(C.X) == 0 && Cy.Cmp(C.Y) == 0 {
 		return true
 	}
-        return false
+	return false
 }

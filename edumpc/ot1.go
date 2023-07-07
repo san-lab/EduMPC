@@ -1,4 +1,4 @@
-package main
+package edumpc
 
 import (
 	"encoding/json"
@@ -46,7 +46,7 @@ func InitNewOt1(mpcn *MPCNode) {
 	mpcm := new(MPCMessage)
 	mpcm.Protocol = ot1
 	mpcm.Command = "join"
-	mpcn.Respond(mpcm, ses)
+	ses.Respond(mpcm)
 
 	return
 }
@@ -54,7 +54,7 @@ func InitNewOt1(mpcn *MPCNode) {
 func NewOt1Session(mpcn *MPCNode, sessionID string) *Session {
 	ses := new(Session)
 	ses.ID = sessionID
-	ses.Type = ot1
+	ses.Protocol = ot1
 	ses.HandleMessage = HandleOt1Message
 	ses.Details = PrintState
 	ses.Interactive = true
@@ -82,11 +82,11 @@ func PrintState(ses *Session) {
 	fmt.Println("Plaintext:", string(ots.Plaintext))
 }
 
-func Ot1Prompt(mpcn *MPCNode, ses *Session) {
+func Ot1Prompt(ses *Session) {
 
 }
 
-func Ot1PromptJoin(mpcn *MPCNode, ses *Session) {
+func Ot1PromptJoin(ses *Session) {
 	ots := ses.State.(*OT1State)
 	items := []string{"Yes", "No", up}
 	pr := promptui.Select{Label: "Accept OT1 invitation",
@@ -97,7 +97,7 @@ func Ot1PromptJoin(mpcn *MPCNode, ses *Session) {
 	case up:
 		return
 	case "No":
-		delete(mpcn.sessions, ses.ID)
+		delete(ses.Node.sessions, ses.ID)
 	case "Yes":
 		prP := promptui.Prompt{Label: "Message 1"}
 		ots.Msg1, _ = prP.Run()
@@ -110,13 +110,13 @@ func Ot1PromptJoin(mpcn *MPCNode, ses *Session) {
 		mpcm := new(MPCMessage)
 		mpcm.Message = ABytes
 		mpcm.Command = "choose"
-		mpcn.Respond(mpcm, ses)
+		ses.Respond(mpcm)
 		ses.Interactive = false
 		ses.Status = "joined"
 	}
 }
 
-func Ot1PromptChoice(mpcn *MPCNode, ses *Session) {
+func Ot1PromptChoice(ses *Session) {
 	ots := ses.State.(*OT1State)
 	items := []string{"msg1", "msg2", up}
 	pr := promptui.Select{Label: "Select message",
@@ -139,7 +139,7 @@ func Ot1PromptChoice(mpcn *MPCNode, ses *Session) {
 	mpcm := new(MPCMessage)
 	mpcm.Message = BBytes
 	mpcm.Command = "transfer"
-	mpcn.Respond(mpcm, ses)
+	ses.Respond(mpcm)
 	ses.Interactive = false
 	ses.Status = "msg chosen"
 }
@@ -153,10 +153,10 @@ func Ot1PromptTransfer(ses *Session) {
 	mpcm := new(MPCMessage)
 	mpcm.Message = EBytes
 	mpcm.Command = "decrypt"
-	ses.Node.Respond(mpcm, ses)
+	ses.Respond(mpcm)
 	ses.Interactive = false
 	ses.Status = "done"
-//	delete(mpcn.sessions, ses.ID)
+	//	delete(mpcn.sessions, ses.ID)
 
 }
 
@@ -166,7 +166,7 @@ func Ot1PromptDecrypt(ses *Session) {
 	ots.Plaintext = m
 	fmt.Println("Decrypted message:", string(m))
 	ses.Status = "done"
-//	delete(mpcn.sessions, ses.ID)
+	// delete(mpcn.sessions, ses.ID)
 }
 
 func HandleOt1Message(mpcm *MPCMessage, ses *Session) {

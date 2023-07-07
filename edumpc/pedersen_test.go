@@ -1,31 +1,30 @@
-package main
+package edumpc
 
 import (
-	"math/big"
 	"bytes"
 	"encoding/binary"
-	"testing"
 	"fmt"
+	"math/big"
+	"testing"
 )
-
 
 func TestPedersen(t *testing.T) {
 	fmt.Println("-----------------")
 	Setup()
 
-        v := []byte("010101value")
-        r, C := Commit(v)
-        fmt.Println("Verify?: ", VerifyCommitment(v, r, C))
+	v := []byte("010101value")
+	r, C := Commit(v)
+	fmt.Println("Verify?: ", VerifyCommitment(v, r, C))
 }
 
-func TestBytesInt(t *testing.T){
-//	myInt := []byte{0, 0, 0, 0, 0, 0, 1, 245}
-//	myInt := []byte{149, 117, 141, 137, 115, 160, 20, 83}
-//	v := int64(binary.BigEndian.Uint64(myInt))
-//	fmt.Println("v:", v)
-//	e := 10769669705416315987 - 7677074368293235629
-//	fmt.Println(e)
-//	fmt.Println(secp256r1.Params().P)
+func TestBytesInt(t *testing.T) {
+	// myInt := []byte{0, 0, 0, 0, 0, 0, 1, 245}
+	// myInt := []byte{149, 117, 141, 137, 115, 160, 20, 83}
+	// v := int64(binary.BigEndian.Uint64(myInt))
+	// fmt.Println("v:", v)
+	// e := 10769669705416315987 - 7677074368293235629
+	// fmt.Println(e)
+	// fmt.Println(secp256r1.Params().P)
 }
 
 // Since H = kG
@@ -34,19 +33,19 @@ func TestBytesInt(t *testing.T){
 // and still pass the test
 func TestEvilPedersen(t *testing.T) {
 	fmt.Println("-----------------")
-        Setup()
+	Setup()
 
-        v := []byte{0,0,0,0,0,0,1,1}
-        r, C := Commit(v)
-        fmt.Println("Verify?: ", VerifyCommitment(v, r, C))
+	v := []byte{0, 0, 0, 0, 0, 0, 1, 1}
+	r, C := Commit(v)
+	fmt.Println("Verify?: ", VerifyCommitment(v, r, C))
 
 	// Craft fake_v
 	k := int64(2)
-	fake_v := []byte{0,0,0,0,0,0,0,1}
+	fake_v := []byte{0, 0, 0, 0, 0, 0, 0, 1}
 	fake_v_int := int64(binary.BigEndian.Uint64(fake_v))
 	v_int := int64(binary.BigEndian.Uint64(v))
 	r_int := int64(binary.BigEndian.Uint64(r))
-	fake_r_int := r_int + k * v_int - k * fake_v_int
+	fake_r_int := r_int + k*v_int - k*fake_v_int
 	fmt.Println("fake_v, v, r, fake_r:", fake_v_int, v_int, r_int, fake_r_int)
 
 	fake_r_bigint := new(big.Int).Mod(big.NewInt(fake_r_int), secp256r1.Params().P)
@@ -64,6 +63,5 @@ func TestEvilPedersen(t *testing.T) {
 	fake_r_int2 := int64(binary.BigEndian.Uint64(fake_r_bytes))
 	fmt.Println("fake_r_int:", fake_r_int2)
 
-        fmt.Println("EvilVerify?: ", VerifyCommitment(fake_v, fake_r_bytes, C))
+	fmt.Println("EvilVerify?: ", VerifyCommitment(fake_v, fake_r_bytes, C))
 }
-

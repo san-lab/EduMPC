@@ -1,4 +1,4 @@
-package main
+package edumpc
 
 import (
 	"crypto/rand"

@@ -1,9 +1,10 @@
-package main
+package edumpc
 
 import (
 	"fmt"
-//	"strconv"
+	//	"strconv"
 	"math/big"
+
 	"github.com/manifoldco/promptui"
 )
 
@@ -14,24 +15,46 @@ const useraction = "User action"
 const details = "Details"
 const news = "New"
 
+var packageUI = map[string]func(*MPCNode){}
+
+func AddPackageUI(key string, ui func(*MPCNode)) {
+	packageUI[key] = ui
+	fmt.Println(key, "added")
+}
+
 func TopUI(mpcn *MPCNode) {
 	for {
+		items := []string{config, peers, "Sessions"}
+		for k := range packageUI {
+			items = append(items, k)
+		}
+		items = append(items, "EXIT")
 		prompt := promptui.Select{
 			Label: "MPC Node",
-			Items: []string{config, peers, "Sessions", "EXIT"},
+			Items: items,
 		}
 		_, it, _ := prompt.Run()
+
 		switch it {
 		case config:
 			ConfigUI(mpcn)
 		case peers:
-			for _, pr := range mpcn.topic.ListPeers() {
-				fmt.Println(pr)
+			prs := mpcn.topic.ListPeers()
+			if len(prs) > 0 {
+				for _, pr := range prs {
+					fmt.Println(pr)
+				}
+			} else {
+				fmt.Println("No peers in the topic")
 			}
 		case "Sessions":
 			SessionSelectUI(mpcn)
 		case "EXIT":
 			return
+		default:
+			if f, ok := packageUI[it]; ok {
+				f(mpcn)
+			}
 		}
 
 	}
@@ -73,7 +96,7 @@ func SessionUI(mpcn *MPCNode, ses *Session) {
 			items = append(items, useraction)
 		}
 		items = append(items, up)
-		pr := promptui.Select{Label: fmt.Sprintf("%s %s", ses.Type, ses.ID),
+		pr := promptui.Select{Label: fmt.Sprintf("%s %s", ses.Protocol, ses.ID),
 			Items: items}
 		_, res, _ := pr.Run()
 		if res == up {
@@ -83,7 +106,7 @@ func SessionUI(mpcn *MPCNode, ses *Session) {
 			ses.Details(ses)
 		}
 		if res == useraction {
-			ses.NextPrompt(mpcn, ses)
+			ses.NextPrompt(ses)
 
 		}
 	}
@@ -91,7 +114,7 @@ func SessionUI(mpcn *MPCNode, ses *Session) {
 
 func StartNewSessionUI(mpcn *MPCNode) {
 	items := []string{}
-	for _, prot := range Protocols {
+	for prot := range Protocols {
 		if prot != dumb {
 			items = append(items, string(prot))
 		}
@@ -106,18 +129,10 @@ func StartNewSessionUI(mpcn *MPCNode) {
 	if prot == up {
 		return
 	}
-	if prot == string(chat) {
-		InitNewChat(mpcn)
+	if sh, ok := Protocols[Protocol(prot)]; ok {
+		sh.NewSessionUI(mpcn)
 	}
-	if prot == string(ot1) {
-		InitNewOt1(mpcn)
-	}
-	if prot == string(PM2A) {
-		InitNewPM2A(mpcn)
-	}
-	if prot == string(PM2Att) {
-		InitNewPM2Att(mpcn)
-	}
+
 }
 
 func PromptForNumber(label, def string) *big.Int {

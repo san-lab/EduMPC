@@ -1,17 +1,18 @@
-package main
+package edumpc
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 	"log"
+	"sync"
 
+	"github.com/google/uuid"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
-// ChatRoomBufSize is the number of incoming messages to buffer for each topic.
-const ChatRoomBufSize = 128
+var MPCNET string
 
 // MPCNode represents a subscription to a single PubSub topic. Messages
 // can be published to the topic with MPCNode.Publish, and received
@@ -34,6 +35,7 @@ const response = Command("response")
 
 // MPCMessage gets converted to/from JSON and sent in the body of pubsub messages.
 type MPCMessage struct {
+	MessageID string
 	Message   []byte
 	Protocol  Protocol
 	Command   Command
@@ -74,13 +76,15 @@ func (mpcn *MPCNode) ProcessMessage(msg *pubsub.Message) {
 	var ok bool
 	session, ok = mpcn.sessions[mpcmsg.SessionID]
 	if !ok {
-		session = mpcn.NewSession(mpcmsg.Protocol, mpcmsg.SessionID)
+		session = mpcn.NewIncomingSession(mpcmsg.Protocol, mpcmsg.SessionID)
 	}
 	session.SessionHandle(mpcmsg)
 }
 
-func (mpcn *MPCNode) Respond(mpcmsg *MPCMessage, ses *Session) {
-
+func (mpcn *MPCNode) SendMsg(mpcmsg *MPCMessage, ses *Session) {
+	if mpcmsg.MessageID == "" {
+		mpcmsg.MessageID = uuid.NewString()
+	}
 	mpcmsg.SenderID = mpcn.self.String()
 	mpcmsg.SessionID = ses.ID
 	ses.History = append(ses.History, mpcmsg)
@@ -89,10 +93,20 @@ func (mpcn *MPCNode) Respond(mpcmsg *MPCMessage, ses *Session) {
 
 }
 
+var mutex = &sync.Mutex{}
+
+func (mpcn *MPCNode) PeerCount() int {
+	mutex.Lock()
+	defer mutex.Unlock()
+	return len(mpcn.topic.ListPeers())
+}
+
 // tries to subscribe to the PubSub topic for the room name, returning
 // an MPCNode on success.
 func JoinMPCNet(ctx context.Context, ps *pubsub.PubSub, selfID peer.ID, roomName string) (*MPCNode, error) {
 	// join the pubsub topic
+	mutex.Lock()
+	defer mutex.Unlock()
 	topic, err := ps.Join(MPCNET)
 	if err != nil {
 		return nil, err
@@ -116,4 +130,12 @@ func JoinMPCNet(ctx context.Context, ps *pubsub.PubSub, selfID peer.ID, roomName
 	// start reading messages from the subscription in a loop
 	go mpcn.readLoop()
 	return mpcn, nil
+}
+
+func (mpcn *MPCNode) NewLocalSession(id string, ses *Session) {
+	mpcn.sessions[id] = ses
+}
+
+func (mpcn *MPCNode) GetNodeID() string {
+	return string(mpcn.self)
 }

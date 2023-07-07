@@ -1,4 +1,4 @@
-package main
+package edumpc
 
 import (
 	"encoding/json"
@@ -52,7 +52,7 @@ func PrintPM2AttState(ses *Session) {
 	fmt.Println("V1:", st.V1)
 	fmt.Println("Ps:", st.Ps)
 	fmt.Println("Qs:", st.Qs)
-  	fmt.Println("rs:", st.rs)
+	fmt.Println("rs:", st.rs)
 	fmt.Println("xs:", st.xs)
 	fmt.Println("x:", st.x)
 }
@@ -81,7 +81,7 @@ func InitNewPM2Att(mpcn *MPCNode) {
 	}
 
 	mpcm.Protocol = PM2Att
-	mpcn.Respond(mpcm, ses)
+	ses.Respond(mpcm)
 	ses.Interactive = false
 
 }
@@ -97,7 +97,7 @@ func NewSenderPM2AttSession(mpcn *MPCNode, sessionID string) *Session {
 
 	ses := new(Session)
 	ses.ID = sessionID
-	ses.Type = PM2Att
+	ses.Protocol = PM2Att
 	ses.HandleMessage = HandlePM2AttMessage
 	ses.Details = PrintPM2AttState
 	ses.Interactive = true
@@ -147,7 +147,7 @@ func HandlePM2AttMessage(mpcm *MPCMessage, ses *Session) {
 
 }
 
-func PM2AttPromptJoin(mpcn *MPCNode, ses *Session) {
+func PM2AttPromptJoin(ses *Session) {
 	//ots := ses.State.(*OT1State)
 	items := []string{"Yes", "No", up}
 	pr := promptui.Select{Label: "Accept PM2A invitation",
@@ -158,7 +158,7 @@ func PM2AttPromptJoin(mpcn *MPCNode, ses *Session) {
 	case up:
 		return
 	case "No":
-		delete(mpcn.sessions, ses.ID)
+		delete(ses.Node.sessions, ses.ID)
 	case "Yes":
 
 		v := PromptForNumber("Local multiplicative share", "")
@@ -186,7 +186,7 @@ func PM2AttPromptJoin(mpcn *MPCNode, ses *Session) {
 		mpcm.Message = b
 		mpcm.Command = "save"
 
-		mpcn.Respond(mpcm, ses)
+		ses.Respond(mpcm)
 		ses.Interactive = false
 		ses.Status = "joined"
 	}
