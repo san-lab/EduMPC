@@ -6,11 +6,35 @@ import (
 	"testing"
 )
 
-func Test_crack(t *testing.T) {
+func TestHonestExecution(t *testing.T) {
 	m := "test"
-	priv, pub, x_a, x_b, x_b_enc, X_x, X_y := KeyGenLindell()
-	RegularECDSA(m, x_a, x_b, X_x, X_y)
-	SignLindell(m, pub, priv, x_a, x_b, x_b_enc, X_x, X_y)
+	paillier_bits := 1024
+	x_a := big.NewInt(33)
+	x_b := big.NewInt(98)
+	k_a := big.NewInt(44)
+	k_b := big.NewInt(87)
+	attack := false
+	l := big.NewInt(0)
+	y_b := big.NewInt(0)
+
+	priv, pub, x_a, x_b, x_b_enc, X_x, X_y := KeyGenLindell(x_a, x_b, paillier_bits)
+	//RegularECDSA(m, x_a, x_b, X_x, X_y)
+	SignLindell(m, pub, priv, x_a, x_b, x_b_enc, X_x, X_y, k_a, k_b, attack, l, y_b)
+}
+
+func TestCrack(t *testing.T) {
+	m := "test"
+	paillier_bits := 1024
+	x_a := big.NewInt(33)
+	x_b := big.NewInt(97)
+	l := big.NewInt(1)
+	k_a := new(big.Int).Exp(big.NewInt(2), l, nil) // Nonce A must be 2^l
+	k_b := big.NewInt(87)
+	attack := true
+	y_b := big.NewInt(0)
+
+	priv, pub, x_a, x_b, x_b_enc, X_x, X_y := KeyGenLindell(x_a, x_b, paillier_bits)
+	SignLindell(m, pub, priv, x_a, x_b, x_b_enc, X_x, X_y, k_a, k_b, attack, l, y_b)
 }
 
 func TestHomomorphic(t *testing.T) {
