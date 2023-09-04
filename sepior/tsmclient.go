@@ -1,3 +1,6 @@
+//go:build sepior
+// +build sepior
+
 package sepior
 
 import (
