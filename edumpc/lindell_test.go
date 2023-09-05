@@ -1,6 +1,7 @@
 package edumpc
 
 import (
+	"crypto/rand"
 	"fmt"
 	"math/big"
 	"testing"
@@ -27,15 +28,38 @@ func TestCrack(t *testing.T) {
 	m := "test"
 	paillier_bits := 2048
 	x_a := big.NewInt(33)
-	x_b := big.NewInt(10234)
-	k_b := big.NewInt(86)
-
-	l := big.NewInt(1)
-	k_a := new(big.Int).Exp(big.NewInt(2), l, nil) // Nonce A must be 2^l
-	y_b := big.NewInt(0)
+	x_b, _ := rand.Int(rand.Reader, big.NewInt(100000000))
+	//x_b := big.NewInt(10000)
+	fmt.Println("x_b:", x_b)
+	k_b, _ := rand.Int(rand.Reader, big.NewInt(100000000))
+	//k_b := big.NewInt(88)
 
 	priv, pub, x_a, x_b, x_b_enc, X_x, X_y := KeyGenLindell(x_a, x_b, paillier_bits)
-	SignLindell(m, pub, priv, x_a, x_b, x_b_enc, X_x, X_y, k_a, k_b, attack, l, y_b)
+
+	y_b := big.NewInt(0)
+	l := big.NewInt(1)
+	//k_a := new(big.Int).Exp(big.NewInt(2), l, nil) // Nonce A must be 2^l
+
+	//priv, pub, x_a, x_b, x_b_enc, X_x, X_y := KeyGenLindell(x_a, x_b, paillier_bits)
+	//verifies := SignLindell(m, pub, priv, x_a, x_b, x_b_enc, X_x, X_y, k_a, k_b, attack, l, y_b)
+	//fmt.Println(verifies)
+
+	for i := 0; i < x_b.BitLen(); i++ {
+		k_a := new(big.Int).Exp(big.NewInt(2), l, nil) // Nonce A must be 2^l
+
+		verifies := SignLindell(m, pub, priv, x_a, x_b, x_b_enc, X_x, X_y, k_a, k_b, attack, l, y_b)
+
+		if !verifies {
+			fmt.Println("1")
+			inc_y_b := new(big.Int).Div(k_a, big.NewInt(2))
+			y_b.Add(y_b, inc_y_b)
+		} else {
+			fmt.Println("0")
+		}
+		l.Add(l, big.NewInt(1))
+	}
+	fmt.Println(y_b)
+
 }
 
 func TestHomomorphic(t *testing.T) {
