@@ -1,65 +1,98 @@
 package edumpc
 
 import (
+	"crypto/ecdsa"
 	"crypto/rand"
+	"crypto/sha256"
 	"fmt"
 	"math/big"
 	"testing"
 )
 
 func TestHonestExecution(t *testing.T) {
-	m := "test"
 	paillier_bits := 1024
+	m := "test"
+	m_hash := sha256.Sum256([]byte(m))
+
 	x_a := big.NewInt(33)
 	x_b := big.NewInt(98)
 	k_a := big.NewInt(44)
 	k_b := big.NewInt(87)
+
 	attack := false
 	l := big.NewInt(0)
 	y_b := big.NewInt(0)
 
-	priv, pub, x_a, x_b, x_b_enc, X_x, X_y := KeyGenLindell(x_a, x_b, paillier_bits)
-	//RegularECDSA(m, x_a, x_b, X_x, X_y)
-	SignLindell(m, pub, priv, x_a, x_b, x_b_enc, X_x, X_y, k_a, k_b, attack, l, y_b)
+	priv, pub, x_b_enc, edcsaPubKey := KeyGenLindell(x_a, x_b, paillier_bits)
+	r, s := SignLindell(m, pub, priv, x_a, x_b, x_b_enc, k_a, k_b, attack, l, y_b)
+	fmt.Println("Verifies?", ecdsa.Verify(edcsaPubKey, m_hash[:], r, s))
 }
 
-func TestCrack(t *testing.T) {
-	attack := true
+func TestFullCrack(t *testing.T) {
+	paillier_bits := 1024
 	m := "test"
-	paillier_bits := 2048
+	m_hash := sha256.Sum256([]byte(m))
+
+	attack := true
+
 	x_a := big.NewInt(33)
-	x_b, _ := rand.Int(rand.Reader, big.NewInt(100000000))
-	//x_b := big.NewInt(10000)
+	x_b, _ := rand.Int(rand.Reader, big.NewInt(1000))
 	fmt.Println("x_b:", x_b)
 	k_b, _ := rand.Int(rand.Reader, big.NewInt(100000000))
-	//k_b := big.NewInt(88)
 
-	priv, pub, x_a, x_b, x_b_enc, X_x, X_y := KeyGenLindell(x_a, x_b, paillier_bits)
+	priv, pub, x_b_enc, ecdsaPubKey := KeyGenLindell(x_a, x_b, paillier_bits)
 
-	y_b := big.NewInt(0)
 	l := big.NewInt(1)
-	//k_a := new(big.Int).Exp(big.NewInt(2), l, nil) // Nonce A must be 2^l
-
-	//priv, pub, x_a, x_b, x_b_enc, X_x, X_y := KeyGenLindell(x_a, x_b, paillier_bits)
-	//verifies := SignLindell(m, pub, priv, x_a, x_b, x_b_enc, X_x, X_y, k_a, k_b, attack, l, y_b)
-	//fmt.Println(verifies)
-
+	y_b := big.NewInt(0)
+	bitstring := ""
 	for i := 0; i < x_b.BitLen(); i++ {
-		k_a := new(big.Int).Exp(big.NewInt(2), l, nil) // Nonce A must be 2^l
+		k_a := new(big.Int).Exp(big.NewInt(2), l, nil)
 
-		verifies := SignLindell(m, pub, priv, x_a, x_b, x_b_enc, X_x, X_y, k_a, k_b, attack, l, y_b)
+		r, s := SignLindell(m, pub, priv, x_a, x_b, x_b_enc, k_a, k_b, attack, l, y_b)
+		verifies := ecdsa.Verify(ecdsaPubKey, m_hash[:], r, s)
 
 		if !verifies {
+			bitstring = "1" + bitstring
 			fmt.Println("1")
 			inc_y_b := new(big.Int).Div(k_a, big.NewInt(2))
 			y_b.Add(y_b, inc_y_b)
 		} else {
+			bitstring = "0" + bitstring
 			fmt.Println("0")
 		}
 		l.Add(l, big.NewInt(1))
 	}
-	fmt.Println(y_b)
+	fmt.Println("Bits:", bitstring)
+	fmt.Println("Share of b:", y_b)
 
+}
+
+func Test1BitCrack(t *testing.T) {
+	paillier_bits := 1024
+	m := "test"
+	m_hash := sha256.Sum256([]byte(m))
+
+	attack := true
+
+	x_a := big.NewInt(33)
+	x_b, _ := rand.Int(rand.Reader, big.NewInt(100000000))
+	fmt.Println("x_b:", x_b)
+	k_b, _ := rand.Int(rand.Reader, big.NewInt(100000000))
+
+	priv, pub, x_b_enc, ecdsaPubKey := KeyGenLindell(x_a, x_b, paillier_bits)
+
+	l := big.NewInt(1)
+	y_b := big.NewInt(0)
+	k_a := new(big.Int).Exp(big.NewInt(2), l, nil) // Nonce A must be 2^l
+
+	r, s := SignLindell(m, pub, priv, x_a, x_b, x_b_enc, k_a, k_b, attack, l, y_b)
+	verifies := ecdsa.Verify(ecdsaPubKey, m_hash[:], r, s)
+	fmt.Println("Verifies?", verifies)
+	if !verifies {
+		fmt.Println("Secret share is odd")
+	} else {
+		fmt.Println("Secret share is even")
+	}
 }
 
 func TestHomomorphic(t *testing.T) {
