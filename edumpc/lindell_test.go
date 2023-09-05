@@ -23,14 +23,15 @@ func TestHonestExecution(t *testing.T) {
 }
 
 func TestCrack(t *testing.T) {
+	attack := true
 	m := "test"
-	paillier_bits := 1024
+	paillier_bits := 2048
 	x_a := big.NewInt(33)
-	x_b := big.NewInt(97)
+	x_b := big.NewInt(10234)
+	k_b := big.NewInt(86)
+
 	l := big.NewInt(1)
 	k_a := new(big.Int).Exp(big.NewInt(2), l, nil) // Nonce A must be 2^l
-	k_b := big.NewInt(87)
-	attack := true
 	y_b := big.NewInt(0)
 
 	priv, pub, x_a, x_b, x_b_enc, X_x, X_y := KeyGenLindell(x_a, x_b, paillier_bits)

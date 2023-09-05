@@ -40,7 +40,7 @@ func SignLindell(m string, pub *PaillierPub, priv *PaillierPriv, x_a, x_b, x_b_e
 	// Protocol 3.3 Step 3 (Party A)
 	D := new(big.Int)
 	if attack {
-		D = SignLindellAdversaryPartyA(x_a, k_a, R_x, m_hash_bigint, x_b_enc, l, y_b, pub)
+		D = SignLindellAdversaryPartyA(x_a, k_a, R_x, m_hash_bigint, x_b_enc, l, y_b, pub, priv, k_b)
 	} else {
 		D = SignLindellPartyA(x_a, k_a, R_x, m_hash_bigint, x_b_enc, pub)
 	}
@@ -101,28 +101,30 @@ func SignLindellPartyB(k_b, D *big.Int, priv *PaillierPriv) *big.Int {
 	return s
 }
 
-func SignLindellAdversaryPartyA(x_a, k_a, R_x, m_hash_bigint, x_b_enc, l, y_b *big.Int, pub *PaillierPub) *big.Int {
+func SignLindellAdversaryPartyA(x_a, k_a, R_x, m_hash_bigint, x_b_enc, l, y_b *big.Int, pub *PaillierPub, priv *PaillierPriv, k_b *big.Int) *big.Int {
 	// Attack 3.5 Step 1
+	fmt.Println(k_a)
 	k_a_inv := new(big.Int).ModInverse(k_a, CurveLindell.Params().N)
 	k_a_inv_N := new(big.Int).ModInverse(k_a, pub.N)
 	epsilon := new(big.Int).Sub(k_a_inv, k_a_inv_N)
 
-	r_prime := R_x
-	checkMod := new(big.Int).Mod(r_prime, big.NewInt(2))
-	mod := checkMod.Cmp(big.NewInt(0))
-	if mod != 0 {
-		r_prime.Add(r_prime, CurveLindell.Params().N)
+	r_prime := new(big.Int).Set(R_x)
+	if r_prime.Bit(0) != 0 {
+		r_prime.Add(R_x, CurveLindell.Params().N)
 	}
+	r_prime.Mod(r_prime, CurveLindell.Params().N)
+	fmt.Println("r_prime:", r_prime)
 
 	// Attack 3.5 Step 2
 	// Enc( k_a^-1 * (hash + R_x * x_a) + offset )
 	res1 := new(big.Int).Mul(R_x, x_a)
 	res1.Add(res1, m_hash_bigint)
-	res1.Mul(res1, k_a_inv)
+	res1.Mul(k_a_inv, res1)
 	res1.Mod(res1, CurveLindell.Params().N)
 
 	offset := new(big.Int).Mul(y_b, r_prime)
 	offset.Mul(offset, epsilon)
+	fmt.Println("offset:", offset)
 
 	res1.Add(res1, offset)
 	res1 = pub.Encrypt(res1)
@@ -132,10 +134,45 @@ func SignLindellAdversaryPartyA(x_a, k_a, R_x, m_hash_bigint, x_b_enc, l, y_b *b
 	//res2.Mod(res2, CurveLindell.Params().N) ?
 	res2.Exp(x_b_enc, res2, pub.N2) //mod N2?
 	//fmt.Println("res2:", res2)
+	/*
+		//debug
+		res22 := new(big.Int).Mul(R_x, k_a_inv)
+		//res2.Mod(res2, CurveLindell.Params().N) ?
+		res22.Exp(x_b_enc, res22, pub.N2) //mod N2?
+		fmt.Println("res22:", res22)
 
+		res12 := new(big.Int).Mul(res1, res22)
+		res12.Mod(res12, pub.N2)
+		fmt.Println("res12:", res12)
+
+		k_b_inv := new(big.Int).ModInverse(k_b, CurveLindell.Params().N)
+		res12_dec := priv.Decrypt(res12)
+		s12 := new(big.Int).Mul(k_b_inv, res12_dec)
+		s12.Mod(s12, CurveLindell.Params().N)
+		fmt.Println("res12_dec:", res12_dec)
+		skb12 := new(big.Int).Mul(s12, k_b)
+		skb12.Mod(skb12, CurveLindell.Params().N)
+		fmt.Println("skb12:", skb12)
+	*/
 	res1.Mul(res1, res2)
 	res1.Mod(res1, pub.N2) // res1 (D) is sent to party B
 	//fmt.Println("res1:", res1)
+
+	k_a_inv.Mul(k_a_inv, k_a)
+	k_a_inv.Mod(k_a_inv, CurveLindell.Params().N)
+	fmt.Println("k_a_inv:", k_a_inv)
+	k_a_inv_N.Mul(k_a_inv_N, k_a)
+	k_a_inv_N.Mod(k_a_inv_N, pub.N)
+	fmt.Println("k_a_inv_N:", k_a_inv_N)
+	k_b_inv := new(big.Int).ModInverse(k_b, CurveLindell.Params().N)
+	res1_dec := priv.Decrypt(res1)
+	s := new(big.Int).Mul(k_b_inv, res1_dec)
+	s.Mod(s, CurveLindell.Params().N)
+	fmt.Println("res1_dec:", res1_dec)
+	skb := new(big.Int).Mul(s, k_b)
+	skb.Mod(skb, CurveLindell.Params().N)
+	fmt.Println("skb:", skb)
+
 	return res1
 }
 
