@@ -65,10 +65,11 @@ func InitNewPM2A(mpcn *MPCNode) {
 	msg.N = st.Priv.N
 	msg.V = st.Pub.Encrypt(st.MulShare)
 	st.V = msg.V
-	mpcm.Message, err = json.Marshal(msg)
+	bs, err := json.Marshal(msg)
 	if err != nil {
 		fmt.Println(err)
 	}
+	mpcm.Message = string(bs)
 
 	mpcm.Protocol = PM2A
 	ses.Respond(mpcm)
@@ -109,7 +110,7 @@ func HandlePM2AMessage(mpcm *MPCMessage, ses *Session) {
 		ses.NextPrompt = PM2APromptJoin
 
 		msg := new(PM2AMessage)
-		err := json.Unmarshal(mpcm.Message, msg)
+		err := json.Unmarshal([]byte(mpcm.Message), msg)
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -121,7 +122,7 @@ func HandlePM2AMessage(mpcm *MPCMessage, ses *Session) {
 		ses.Interactive = false
 		st := (ses.State).(*PM2AState)
 		msg := new(PM2AMessage)
-		err := json.Unmarshal(mpcm.Message, msg)
+		err := json.Unmarshal([]byte(mpcm.Message), msg)
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -172,7 +173,7 @@ func PM2APromptJoin(ses *Session) {
 		}
 
 		mpcm := new(MPCMessage)
-		mpcm.Message = b
+		mpcm.Message = string(b)
 		mpcm.Command = "save"
 
 		ses.Respond(mpcm)

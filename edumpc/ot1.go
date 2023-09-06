@@ -108,7 +108,7 @@ func Ot1PromptJoin(ses *Session) {
 		ABytes, _ := json.Marshal(ots.A)
 
 		mpcm := new(MPCMessage)
-		mpcm.Message = ABytes
+		mpcm.Message = string(ABytes)
 		mpcm.Command = "choose"
 		ses.Respond(mpcm)
 		ses.Interactive = false
@@ -127,17 +127,17 @@ func Ot1PromptChoice(ses *Session) {
 	case up:
 		return
 	case "msg1":
-		ots.Choice = 0
-		ots.B, ots.Priv_b, _ = receiverPicks(myCurve, ots.A, 0)
-	case "msg2":
 		ots.Choice = 1
 		ots.B, ots.Priv_b, _ = receiverPicks(myCurve, ots.A, 1)
+	case "msg2":
+		ots.Choice = 2
+		ots.B, ots.Priv_b, _ = receiverPicks(myCurve, ots.A, 2)
 
 	}
 	BBytes, _ := json.Marshal(ots.B)
 
 	mpcm := new(MPCMessage)
-	mpcm.Message = BBytes
+	mpcm.Message = string(BBytes)
 	mpcm.Command = "transfer"
 	ses.Respond(mpcm)
 	ses.Interactive = false
@@ -151,7 +151,7 @@ func Ot1PromptTransfer(ses *Session) {
 	EBytes, _ := json.Marshal(ots.Ciphertexts)
 
 	mpcm := new(MPCMessage)
-	mpcm.Message = EBytes
+	mpcm.Message = string(EBytes)
 	mpcm.Command = "decrypt"
 	ses.Respond(mpcm)
 	ses.Interactive = false
@@ -177,15 +177,15 @@ func HandleOt1Message(mpcm *MPCMessage, ses *Session) {
 		ses.NextPrompt = Ot1PromptJoin
 	case "choose":
 		ses.Interactive = true
-		json.Unmarshal(mpcm.Message, ots.A)
+		json.Unmarshal([]byte(mpcm.Message), ots.A)
 		ses.NextPrompt = Ot1PromptChoice
 	case "transfer":
 		ses.Interactive = false
-		json.Unmarshal(mpcm.Message, ots.B)
+		json.Unmarshal([]byte(mpcm.Message), ots.B)
 		Ot1PromptTransfer(ses)
 	case "decrypt":
 		ses.Interactive = false
-		json.Unmarshal(mpcm.Message, ots.Ciphertexts)
+		json.Unmarshal([]byte(mpcm.Message), ots.Ciphertexts)
 		Ot1PromptDecrypt(ses)
 	default:
 		fmt.Println("we shouldnt be here...")

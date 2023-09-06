@@ -36,7 +36,7 @@ func ChatPrompt(ses *Session) {
 	pr := promptui.Prompt{Label: ses.ID} //fmt.Sprintf("Chat %s\n%s", last)}
 	txt, _ := pr.Run()
 	mpcm := new(MPCMessage)
-	mpcm.Message = []byte(txt)
+	mpcm.Message = txt
 	ses.Respond(mpcm)
 
 }
@@ -48,7 +48,7 @@ func InitNewChat(mpcn *MPCNode) {
 	pr = promptui.Prompt{Label: fmt.Sprintf("Initial message for chat %s", id)}
 	txt, _ := pr.Run()
 	mpcm := new(MPCMessage)
-	mpcm.Message = []byte(txt)
+	mpcm.Message = txt
 	mpcm.Protocol = chat
 	ses.Respond(mpcm)
 

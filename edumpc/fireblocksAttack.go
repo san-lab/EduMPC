@@ -75,10 +75,12 @@ func InitNewPM2Att(mpcn *MPCNode) {
 	msg.N = st.Priv.N
 	msg.V = st.MulShare
 	st.V = msg.V
-	mpcm.Message, err = json.Marshal(msg)
+	bMessage, err := json.Marshal(msg)
+
 	if err != nil {
 		fmt.Println(err)
 	}
+	mpcm.Message = string(bMessage)
 
 	mpcm.Protocol = PM2Att
 	ses.Respond(mpcm)
@@ -120,7 +122,7 @@ func HandlePM2AttMessage(mpcm *MPCMessage, ses *Session) {
 		ses.NextPrompt = PM2AttPromptJoin
 
 		msg := new(PM2AttMessage)
-		err := json.Unmarshal(mpcm.Message, msg)
+		err := json.Unmarshal([]byte(mpcm.Message), msg)
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -132,7 +134,7 @@ func HandlePM2AttMessage(mpcm *MPCMessage, ses *Session) {
 		ses.Interactive = false
 		st := (ses.State).(*PM2AttState)
 		msg := new(PM2AttMessage)
-		err := json.Unmarshal(mpcm.Message, msg)
+		err := json.Unmarshal([]byte(mpcm.Message), msg)
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -183,7 +185,7 @@ func PM2AttPromptJoin(ses *Session) {
 		}
 
 		mpcm := new(MPCMessage)
-		mpcm.Message = b
+		mpcm.Message = string(b)
 		mpcm.Command = "save"
 
 		ses.Respond(mpcm)

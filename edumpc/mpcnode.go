@@ -36,24 +36,13 @@ const response = Command("response")
 // MPCMessage gets converted to/from JSON and sent in the body of pubsub messages.
 type MPCMessage struct {
 	MessageID string
-	Message   []byte
+	Message   string //[]byte
 	Protocol  Protocol
 	Command   Command
 	SenderID  string
 	SessionID string
 	To        string // peer.ID, to be used when targetting a specific peer
 
-}
-
-type MPCMessage_fix struct {
-	//      Message   json.RawMessage     `json:"Message"`
-	//  	Message   AuxMessage `json:"Message"`
-	Message   string   `json:"Message"`
-	Protocol  Protocol `json:"Protocol"`
-	Command   Command  `json:"Command"`
-	SenderID  string   `json:"SenderID"`
-	SessionID string   `json:"SessionID"`
-	To        string   `json:"To"` // peer.ID, to be used when targetting a specific peer
 }
 
 /*
@@ -84,10 +73,8 @@ func (mpcn *MPCNode) ProcessMessage(msg *pubsub.Message) {
 	if mpcn.sessions == nil {
 		mpcn.sessions = map[string]*Session{}
 	}
-	input := new(MPCMessage_fix) // Parse input message with Message field as string and plug it into our good old "Message []byte" struct
-	err := json.Unmarshal(msg.Data, input)
-	mpcmsg := &MPCMessage{Message: []byte(input.Message), Protocol: input.Protocol, Command: input.Command, SenderID: input.SenderID, SessionID: input.SessionID, To: input.To}
-
+	mpcmsg := new(MPCMessage) // Parse input message with Message field as string and plug it into our good old "Message []byte" struct
+	err := json.Unmarshal(msg.Data, mpcmsg)
 	if err != nil {
 		fmt.Println("Bad frame:", err)
 		return
@@ -109,10 +96,7 @@ func (mpcn *MPCNode) SendMsg(mpcmsg *MPCMessage, ses *Session) {
 	mpcmsg.SessionID = ses.ID
 	ses.History = append(ses.History, mpcmsg)
 
-	// Just before publish we turn the Message []byte to string for compatibility with js
-	mpcmsg_fix := &MPCMessage_fix{Message: string(mpcmsg.Message), Protocol: mpcmsg.Protocol, Command: mpcmsg.Command, SenderID: mpcmsg.SenderID, SessionID: mpcmsg.SessionID, To: mpcmsg.To}
-
-	b, _ := json.Marshal(mpcmsg_fix)
+	b, _ := json.Marshal(mpcmsg)
 	mpcn.topic.Publish(context.Background(), b)
 
 }

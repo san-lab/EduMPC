@@ -35,7 +35,7 @@ func receiverPicks(curve elliptic.Curve, A *ECPoint, c int) (*ECPoint, []byte, e
 	b, bGx, bGy, err := elliptic.GenerateKey(curve, rand.Reader)
 
 	Bx, By := bGx, bGy
-	if c == 1 {
+	if c == 2 {
 		Bx, By = curve.Add(A.X, A.Y, bGx, bGy)
 	}
 
