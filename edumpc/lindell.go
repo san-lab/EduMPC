@@ -2,143 +2,300 @@ package edumpc
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/sha256"
+	"crypto/rand"
+	"encoding/json"
+	"fmt"
 	"math/big"
+
+	"github.com/google/uuid"
+	"github.com/manifoldco/promptui"
 )
 
-var CurveLindell = elliptic.P256()
-
-func KeyGenLindell(x_a, x_b *big.Int, paillier_bits int) (*PaillierPriv, *PaillierPub, *big.Int, *ecdsa.PublicKey) {
-	// Paillier key pair, belongs to B
-	priv, pub := GenerateNiceKeyPair(paillier_bits)
-
-	// Encrypt x_b with paillier, send to A
-	x_b_enc := pub.Encrypt(x_b)
-
-	// Public shared key
-	X_a_x, X_a_y := CurveLindell.ScalarBaseMult(x_a.Bytes())
-	X_b_x, X_b_y := CurveLindell.ScalarBaseMult(x_b.Bytes())
-	X_x, X_y := CurveLindell.Add(X_a_x, X_a_y, X_b_x, X_b_y)
-	X := &ecdsa.PublicKey{CurveLindell, X_x, X_y}
-
-	return priv, pub, x_b_enc, X
+type LinKeyGenMessage struct {
+	PubShare *ECPoint
+	EncShare *big.Int
+	Pub      *PaillierPub
 }
 
-func SignLindell(m string, pub *PaillierPub, priv *PaillierPriv, x_a, x_b, x_b_enc, k_a, k_b *big.Int, attack bool, l, y_b *big.Int) (*big.Int, *big.Int) {
-	m_hash := sha256.Sum256([]byte(m))
-	m_hash_bigint := hashToInt(m_hash[:], CurveLindell)
+type LinKeyGenEndMessage struct {
+	PubShare *ECPoint
+	PubEcdsa *ecdsa.PublicKey
+}
 
-	// Public shared nonce
-	r, _ := MulShareLindell(k_a, k_b)
-	//fmt.Println("r:", r)
+type LinPreSignMessage struct {
+	PubPartialNonce *ECPoint
+	Message         string
+}
 
-	// Protocol 3.3 Step 3 (Party A) or Attack 3.5
-	D := new(big.Int)
-	if attack {
-		D = SignLindellAdversaryPartyA(x_a, k_a, r, m_hash_bigint, x_b_enc, l, y_b, pub, priv, k_b)
+type LinState struct {
+	Role             string
+	Priv             *PaillierPriv
+	Pub              *PaillierPub
+	PubEcdsa         *ecdsa.PublicKey
+	ShareA           *big.Int
+	ShareB           *big.Int
+	EncShareB        *big.Int
+	PubShareA        *ECPoint
+	PubShareB        *ECPoint
+	Message          string
+	PartialNonceA    *big.Int
+	PartialNonceB    *big.Int
+	PubNonce         *ECPoint
+	PubPartialNonceA *ECPoint
+	PubPartialNonceB *ECPoint
+	D                *big.Int
+	S                *big.Int
+}
+
+func NewLinState() *LinState {
+	st := new(LinState)
+	return st
+}
+
+func PrintLinState(ses *Session) {
+	fmt.Println("Printing state...")
+	st := (ses.State).(*LinState)
+	fmt.Println("Role:", st.Role)
+	fmt.Println("Private key:", st.Priv != nil)
+	n := big.NewInt(0)
+	if st.Pub != nil {
+		n = st.Pub.N
+	}
+	fmt.Println("Pub N:", n)
+	fmt.Println("PubEcdsa:", st.PubEcdsa)
+	fmt.Println("Secret share A:", st.ShareA)
+	fmt.Println("Secret share B:", st.ShareB)
+	fmt.Println("EncShareB:", st.EncShareB)
+	fmt.Println("PubShareA:", st.PubShareA)
+	fmt.Println("PubShareB:", st.PubShareB)
+	fmt.Println("Message:", st.Message)
+	fmt.Println("PartialNonceA:", st.PartialNonceA)
+	fmt.Println("PartialNonceB:", st.PartialNonceB)
+	fmt.Println("PubNonce:", st.PubNonce)
+	fmt.Println("PubPartialNonceA:", st.PubPartialNonceA)
+	fmt.Println("PubPartialNonceB:", st.PubPartialNonceB)
+	fmt.Println("D:", st.D)
+	fmt.Println("S:", st.S)
+}
+
+func LinDetails(ses *Session) {
+	PrintLinState(ses)
+	fmt.Println(ses.History)
+}
+
+func InitNewLin(mpcn *MPCNode) {
+	var err error
+	sid := "Lin-" + uuid.NewString()
+	ses := NewSenderLinSession(mpcn, sid)
+	st := (ses.State).(*LinState)
+
+	st.ShareB = PromptForNumber("ECDSA private key share", "33")
+
+	b := PromptForNumber("Bits for paillier key:", "1024")
+	bits := int(b.Int64())
+	st.Priv, st.Pub = GenerateNiceKeyPair(bits)
+
+	st.EncShareB = st.Pub.Encrypt(st.ShareB)
+	Xs_x, Xs_y := CurveLindell.ScalarBaseMult(st.ShareB.Bytes())
+	st.PubShareB = &ECPoint{Xs_x, Xs_y}
+
+	mpcm := new(MPCMessage)
+	mpcm.Command = "keygen_join"
+	msg := &LinKeyGenMessage{}
+	msg.Pub = st.Pub
+	msg.EncShare = st.EncShareB
+	msg.PubShare = st.PubShareB
+
+	tmp, err := json.Marshal(msg)
+	mpcm.Message = string(tmp)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	mpcm.Protocol = Lin
+	ses.Respond(mpcm)
+	ses.Interactive = false
+}
+
+func NewSenderLinSession(mpcn *MPCNode, sessionID string) *Session {
+	ses := new(Session)
+	ses.ID = sessionID
+	ses.Protocol = Lin
+	ses.HandleMessage = HandleLinMessage
+	ses.Details = LinDetails //PrintLinState
+	ses.Interactive = true
+	st := NewLinState()
+	st.Role = "sender"
+	ses.State = st
+	ses.Status = "awaiting peer"
+	ses.ID = sessionID
+	mpcn.sessions[ses.ID] = ses
+	ses.Node = mpcn
+	return ses
+}
+
+func NewRecLinSession(mpcn *MPCNode, sessionID string) *Session {
+	ses := NewSenderLinSession(mpcn, sessionID)
+	st := (ses.State).(*LinState)
+	st.Role = "receiver"
+	return ses
+}
+
+func LinPromptJoin(ses *Session) {
+	lin := ses.State.(*LinState)
+	items := []string{"Yes", "No", up}
+	pr := promptui.Select{Label: "Accept Lindell invitation",
+		Items: items,
+	}
+	_, res, _ := pr.Run()
+	switch res {
+	case up:
+		return
+	case "No":
+		delete(ses.Node.sessions, ses.ID)
+	case "Yes":
+		lin.ShareA = PromptForNumber("ECDSA private key share", "97")
+
+		Xs_x, Xs_y := CurveLindell.ScalarBaseMult(lin.ShareA.Bytes())
+		lin.PubShareA = &ECPoint{Xs_x, Xs_y}
+
+		lin.PubEcdsa = new(ecdsa.PublicKey)
+		lin.PubEcdsa.Curve = CurveLindell
+		lin.PubEcdsa.X, lin.PubEcdsa.Y = CurveLindell.Add(lin.PubShareA.X, lin.PubShareA.Y, lin.PubShareB.X, lin.PubShareB.Y)
+
+		mpcm := new(MPCMessage)
+		msg := &LinKeyGenEndMessage{lin.PubShareA, lin.PubEcdsa}
+		tmp, _ := json.Marshal(msg)
+		mpcm.Message = string(tmp)
+		mpcm.Command = "keygen_end"
+		mpcm.Protocol = Lin
+		ses.Respond(mpcm)
+		ses.Interactive = false
+		ses.Status = "joined"
+	}
+}
+
+func LinKeyGenEnd(ses *Session) {
+	lin := ses.State.(*LinState)
+	lin.PubEcdsa.Curve = CurveLindell
+	pubX, pubY := CurveLindell.Add(lin.PubShareA.X, lin.PubShareA.Y, lin.PubShareB.X, lin.PubShareB.Y)
+	mpcm := new(MPCMessage)
+	if pubX.Cmp(lin.PubEcdsa.X) != 0 || pubY.Cmp(lin.PubEcdsa.Y) != 0 {
+		fmt.Println("wrong ecdsa public key")
+		mpcm.Message = "ko"
 	} else {
-		D = SignLindellPartyA(x_a, k_a, r, m_hash_bigint, x_b_enc, pub)
+		fmt.Println("successfully computed ecdsa public key")
+		mpcm.Message = "ok"
 	}
-
-	// Protocol 3.3 Step 4 (Party B)
-	s := SignLindellPartyB(k_b, D, priv)
-
-	return r, s
+	mpcm.Command = "keygen_confirm"
+	mpcm.Protocol = Lin
+	ses.Respond(mpcm)
+	ses.Interactive = false
+	ses.Status = "keygen_end"
 }
 
-func SignLindellPartyA(x_a, k_a, r, m_hash_bigint, x_b_enc *big.Int, pub *PaillierPub) *big.Int {
-	k_a_inv := new(big.Int).ModInverse(k_a, CurveLindell.Params().N)
+func LinPreSign(ses *Session) {
+	fmt.Println("success")
 
-	// Enc( k_a^-1 * (hash + r * x_a) )
-	res1 := new(big.Int).Mul(r, x_a)
-	res1.Add(res1, m_hash_bigint)
-	res1.Mul(res1, k_a_inv)
-	res1.Mod(res1, CurveLindell.Params().N)
-	res1 = pub.Encrypt(res1)
+	lin := ses.State.(*LinState)
+	lin.Message = "test"
+	lin.PartialNonceA = PromptForNumber("Partial nonce", "2") //rand.Int(rand.Reader, big.NewInt(1000))
+	lin.PubPartialNonceA = new(ECPoint)
+	lin.PubPartialNonceA.X, lin.PubPartialNonceA.Y = CurveLindell.ScalarBaseMult(lin.PartialNonceA.Bytes())
 
-	// x_b_enc ^ (r * k_a^-1)
-	// Should equal Enc( (r * k_a^-1) * x_b )
-	res2 := new(big.Int).Mul(r, k_a_inv)
-	res2.Mod(res2, CurveLindell.Params().N)
-	res2.Exp(x_b_enc, res2, pub.N2)
-	//fmt.Println("res2:", res2)
+	msg := &LinPreSignMessage{lin.PubPartialNonceA, lin.Message}
 
-	res1.Mul(res1, res2)
-	res1.Mod(res1, pub.N2) // res1 (D) is sent to party B
-	// fmt.Println("res1:", res1)
-	return res1
+	mpcm := new(MPCMessage)
+	tmp, _ := json.Marshal(msg)
+	mpcm.Message = string(tmp)
+	mpcm.Command = "presign"
+	ses.Respond(mpcm)
+	ses.Interactive = false
+	ses.Status = "sent partial nonce"
 }
 
-func SignLindellPartyB(k_b, D *big.Int, priv *PaillierPriv) *big.Int {
-	// k_b^-1 * Dec( D )
-	k_b_inv := new(big.Int).ModInverse(k_b, CurveLindell.Params().N)
-	res1_dec := priv.Decrypt(D)
-	s := new(big.Int).Mul(k_b_inv, res1_dec)
-	s.Mod(s, CurveLindell.Params().N)
-	return s
+func LinPreSignB(ses *Session) {
+	lin := ses.State.(*LinState)
+	lin.PartialNonceB, _ = rand.Int(rand.Reader, big.NewInt(1000))
+	lin.PubPartialNonceB = new(ECPoint)
+	lin.PubPartialNonceB.X, lin.PubPartialNonceB.Y = CurveLindell.ScalarBaseMult(lin.PartialNonceB.Bytes())
+	lin.PubNonce = new(ECPoint)
+	lin.PubNonce.X, lin.PubNonce.Y = CurveLindell.Add(lin.PubPartialNonceB.X, lin.PubPartialNonceB.Y, lin.PubPartialNonceA.X, lin.PubPartialNonceA.Y)
+
+	msg := &LinPreSignMessage{lin.PubPartialNonceB, lin.Message} // No need to send Message
+
+	mpcm := new(MPCMessage)
+	tmp, _ := json.Marshal(msg)
+	mpcm.Message = string(tmp)
+	mpcm.Command = "end_presign"
+	ses.Respond(mpcm)
+	ses.Interactive = false
+	ses.Status = "sent partial nonce"
 }
 
-func SignLindellAdversaryPartyA(x_a, k_a, r, m_hash_bigint, x_b_enc, l, y_b *big.Int, pub *PaillierPub, priv *PaillierPriv, k_b *big.Int) *big.Int {
-	// Attack 3.5 Step 1
-	k_a_inv := new(big.Int).ModInverse(k_a, CurveLindell.Params().N)
-	k_a_inv_N := new(big.Int).ModInverse(k_a, pub.N)
-	epsilon := new(big.Int).Sub(k_a_inv, k_a_inv_N)
+func LinPreSignEnd(ses *Session) {
+	lin := ses.State.(*LinState)
+	lin.PubNonce = new(ECPoint)
+	lin.PubNonce.X, lin.PubNonce.Y = CurveLindell.Add(lin.PubPartialNonceB.X, lin.PubPartialNonceB.Y, lin.PubPartialNonceA.X, lin.PubPartialNonceA.Y)
+	ses.Status = "finished presign"
+}
 
-	r_prime := new(big.Int).Set(r)
-	if r_prime.Bit(0) == 0 {
-		r_prime.Add(r, CurveLindell.Params().N)
+func LinSign(ses *Session) {
+	fmt.Println("sign")
+}
+
+func HandleLinMessage(mpcm *MPCMessage, ses *Session) {
+	switch mpcm.Command {
+	case "keygen_join":
+		ses.Interactive = true
+		msg := new(LinKeyGenMessage)
+		json.Unmarshal([]byte(mpcm.Message), msg)
+		st := (ses.State).(*LinState)
+		st.Pub = msg.Pub
+		st.PubShareB = msg.PubShare
+		st.EncShareB = msg.EncShare
+		ses.NextPrompt = LinPromptJoin
+
+	case "keygen_end":
+		msg := new(LinKeyGenEndMessage)
+		json.Unmarshal([]byte(mpcm.Message), msg)
+		st := (ses.State).(*LinState)
+		st.PubEcdsa = msg.PubEcdsa
+		st.PubShareA = msg.PubShare
+		LinKeyGenEnd(ses)
+
+	case "keygen_confirm":
+		fmt.Println("comparison")
+		if mpcm.Message == "ok" {
+			fmt.Println("keygen_confirm ok")
+			ses.Interactive = true
+			ses.NextPrompt = LinPreSign
+		} else {
+			fmt.Println("failed keygen from", mpcm.SenderID)
+		}
+
+	case "presign":
+		msg := new(LinPreSignMessage)
+		json.Unmarshal([]byte(mpcm.Message), msg)
+		st := (ses.State).(*LinState)
+		st.Message = msg.Message
+		st.PubPartialNonceA = msg.PubPartialNonce
+		ses.Interactive = false
+		LinPreSignB(ses)
+
+	case "end_presign":
+		msg := new(LinPreSignMessage)
+		json.Unmarshal([]byte(mpcm.Message), msg)
+		st := (ses.State).(*LinState)
+		st.PubPartialNonceB = msg.PubPartialNonce
+		ses.Interactive = false
+		LinPreSignEnd(ses)
+
+	case "sign":
+		fmt.Println("sign")
+
+	default:
+		fmt.Println(mpcm.Command)
+		return
 	}
-	//fmt.Println("r_prime:", r_prime)
-
-	// Attack 3.5 Step 2
-	// Enc( k_a^-1 * (hash + r * x_a) + offset )
-	res1 := new(big.Int).Mul(r, x_a)
-	res1.Add(res1, m_hash_bigint)
-	res1.Mul(k_a_inv, res1)
-	res1.Mod(res1, CurveLindell.Params().N)
-
-	offset := new(big.Int).Mul(y_b, r_prime)
-	offset.Mul(offset, epsilon)
-	//fmt.Println("offset:", offset)
-
-	res1.Add(res1, offset)
-	res1 = pub.Encrypt(res1)
-
-	// x_b_enc ^ (r_prime * (k_a^-1 mod N))
-	res2 := new(big.Int).Mul(r_prime, k_a_inv_N)
-	//res2.Mod(res2, CurveLindell.Params().N) ?
-	res2.Exp(x_b_enc, res2, pub.N2) //mod N2?
-	//fmt.Println("res2:", res2)
-
-	res1.Mul(res1, res2)
-	res1.Mod(res1, pub.N2) // res1 (D) is sent to party B
-	//fmt.Println("res1:", res1)
-
-	return res1
-}
-
-func MulShareLindell(a, b *big.Int) (*big.Int, *big.Int) {
-	ab := new(big.Int).Mul(a, b)
-	ab.Mod(ab, CurveLindell.Params().N)
-	R_x, R_y := CurveLindell.ScalarBaseMult(ab.Bytes())
-	R_x.Mod(R_x, CurveLindell.Params().N)
-	R_y.Mod(R_y, CurveLindell.Params().N)
-	return R_x, R_y
-}
-
-// golang hashToInt used in ecdsa
-func hashToInt(hash []byte, c elliptic.Curve) *big.Int {
-	orderBits := c.Params().N.BitLen()
-	orderBytes := (orderBits + 7) / 8
-	if len(hash) > orderBytes {
-		hash = hash[:orderBytes]
-	}
-
-	ret := new(big.Int).SetBytes(hash)
-	excess := len(hash)*8 - orderBits
-	if excess > 0 {
-		ret.Rsh(ret, uint(excess))
-	}
-	return ret
 }

@@ -83,6 +83,7 @@ const dumb = Protocol("Unknown protocol")
 const ot1 = Protocol("ot1")
 const PM2A = Protocol("Paillier M2A") //Paillier Multi-to-Additive
 const PM2Att = Protocol("Fireblocks attack")
+const Lin = Protocol("Lindell")
 
 func init() {
 	Protocols[chat] = &SessionHandler{InitNewChat, NewChatSession}
@@ -90,7 +91,7 @@ func init() {
 	Protocols[ot1] = &SessionHandler{InitNewOt1, NewOt1Session}
 	Protocols[PM2A] = &SessionHandler{InitNewPM2A, NewRecPM2ASession}
 	Protocols[PM2Att] = &SessionHandler{InitNewPM2Att, NewRecPM2AttSession}
-
+	Protocols[Lin] = &SessionHandler{InitNewLin, NewRecLinSession}
 }
 
 func ShowHistory(ses *Session) {
