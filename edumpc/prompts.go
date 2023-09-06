@@ -13,6 +13,7 @@ const config = "Config"
 const peers = "Peers"
 const useraction = "User action"
 const details = "Details"
+const history = "History"
 const news = "New"
 
 var packageUI = map[string]func(*MPCNode){}
@@ -91,7 +92,7 @@ func SessionSelectUI(mpcn *MPCNode) {
 
 func SessionUI(mpcn *MPCNode, ses *Session) {
 	for {
-		items := []string{details}
+		items := []string{details, history}
 		if ses.Interactive {
 			items = append(items, useraction)
 		}
@@ -109,7 +110,22 @@ func SessionUI(mpcn *MPCNode, ses *Session) {
 			ses.NextPrompt(ses)
 
 		}
+		if res == history {
+			History(ses)
+		}
 	}
+}
+
+func History(ses *Session) {
+	fmt.Println("SESSION HISTORY OF", ses.ID, "--------------")
+	for k, m := range ses.History {
+		cut := len(m.Message)
+		if cut > 100 {
+			cut = 8
+		}
+		fmt.Printf("%v. from: %s command: %s\n\t%s...\n", k+1, m.SenderID, m.Command, m.Message[:cut])
+	}
+	fmt.Println("--------------------------------------------")
 }
 
 func StartNewSessionUI(mpcn *MPCNode) {
