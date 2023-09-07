@@ -36,7 +36,7 @@ func SignLindell(m string, pub *PaillierPub, priv *PaillierPriv, x_a, x_b, x_b_e
 	// Protocol 3.3 Step 3 (Party A) or Attack 3.5
 	D := new(big.Int)
 	if attack {
-		D = SignLindellAdversaryPartyA(x_a, k_a, r, m_hash_bigint, x_b_enc, l, y_b, pub, priv, k_b)
+		D = SignLindellAdversaryPartyA(x_a, k_a, r, m_hash_bigint, x_b_enc, l, y_b, pub)
 	} else {
 		D = SignLindellPartyA(x_a, k_a, r, m_hash_bigint, x_b_enc, pub)
 	}
@@ -79,7 +79,7 @@ func SignLindellPartyB(k_b, D *big.Int, priv *PaillierPriv) *big.Int {
 	return s
 }
 
-func SignLindellAdversaryPartyA(x_a, k_a, r, m_hash_bigint, x_b_enc, l, y_b *big.Int, pub *PaillierPub, priv *PaillierPriv, k_b *big.Int) *big.Int {
+func SignLindellAdversaryPartyA(x_a, k_a, r, m_hash_bigint, x_b_enc, l, y_b *big.Int, pub *PaillierPub) *big.Int {
 	// Attack 3.5 Step 1
 	k_a_inv := new(big.Int).ModInverse(k_a, CurveLindell.Params().N)
 	k_a_inv_N := new(big.Int).ModInverse(k_a, pub.N)
