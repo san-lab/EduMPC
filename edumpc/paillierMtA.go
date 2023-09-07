@@ -24,6 +24,12 @@ type PM2AState struct {
 	V1       *big.Int
 }
 
+const initial = "awaiting peer"
+const invited = "invitation received"
+const joined = "joined"
+const completed = "completed"
+const confirmed = "confirmed"
+
 func NewPM2AState() *PM2AState {
 	st := new(PM2AState)
 	st.MulShare = new(big.Int)
@@ -45,6 +51,32 @@ func PrintPM2AState(ses *Session) {
 	fmt.Println("N:", n)
 	fmt.Println("V:", st.V)
 	fmt.Println("V1:", st.V1)
+}
+
+func myDetails(ses *Session) {
+	fmt.Println("First attempt")
+	fmt.Println("Session ID", ses.ID)
+	fmt.Println("Protocol", ses.Protocol)
+	fmt.Printf("Status of the session is %s \n", ses.Status)
+	sessionState := (ses.State).(*PM2AState)
+	switch ses.Status {
+	case initial:
+		fmt.Println("This is the first step")
+	case invited:
+		fmt.Println("Invitation received from", ses.History[0].SenderID)
+	case joined:
+		fmt.Println("Invitation accepted. Local variables set")
+		fmt.Println("Secret multiplicative share", sessionState.MulShare)
+		fmt.Println("Secret additive share", sessionState.AddShare)
+
+	case confirmed:
+		fmt.Println("Invitation confirmed. Local variables set")
+		fmt.Println("Secret multiplicative share", sessionState.MulShare)
+		fmt.Println("Secret additive share", sessionState.AddShare)
+
+	default:
+		fmt.Println("I don´t know where we are")
+	}
 }
 
 func InitNewPM2A(mpcn *MPCNode) {
@@ -88,7 +120,7 @@ func NewSenderPM2ASession(mpcn *MPCNode, sessionID string) *Session {
 	ses.ID = sessionID
 	ses.Protocol = PM2A
 	ses.HandleMessage = HandlePM2AMessage
-	ses.Details = PrintPM2AState
+	ses.Details = myDetails
 	ses.Interactive = true
 	ses.NextPrompt = PM2APrompt
 	st := NewPM2AState()
@@ -117,6 +149,7 @@ func HandlePM2AMessage(mpcm *MPCMessage, ses *Session) {
 		st := (ses.State).(*PM2AState)
 		st.Pub = &PaillierPub{msg.N, new(big.Int).Mul(msg.N, msg.N)}
 		st.V = msg.V
+		ses.Status = "invitation received"
 
 	case "save":
 		ses.Interactive = false
@@ -129,6 +162,11 @@ func HandlePM2AMessage(mpcm *MPCMessage, ses *Session) {
 		st.V1 = msg.V
 		st.AddShare = st.Priv.Decrypt(msg.V)
 		fmt.Println(msg.N.Cmp(st.AddShare))
+		ses.Status = "all completed"
+		ses.Respond(&MPCMessage{Command: "OK"})
+
+	case "OK":
+		ses.Status = confirmed
 
 	default:
 		fmt.Println("we shouldnt be here...")
