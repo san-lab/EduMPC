@@ -84,14 +84,14 @@ func PrintLinState(ses *Session) {
 	fmt.Println("S:", st.S)
 
 	fmt.Println("Attack:", st.Attack)
-	fmt.Println("Bits / Verifies? (reversed list...):", st.Bits)
+	fmt.Println("Bits / Verifies? (reversed list...):", st.Bits) // TODO improve visuals
 	fmt.Println("L:", st.L)
 	fmt.Println("Y_b:", st.Y_b)
 }
 
 func LinDetails(ses *Session) {
 	PrintLinState(ses)
-	fmt.Println(ses.History)
+	fmt.Println(ses.History) // TODO remove history?
 }
 
 func InitNewLin(mpcn *MPCNode) {
@@ -102,7 +102,7 @@ func InitNewLin(mpcn *MPCNode) {
 
 	st.ShareB = PromptForNumber("ECDSA private key share", "33")
 
-	b := PromptForNumber("Bits for paillier key:", "1024")
+	b := PromptForNumber("Bits for paillier key", "1024")
 	bits := int(b.Int64())
 	st.Priv, st.Pub = GenerateNiceKeyPair(bits)
 
@@ -220,6 +220,7 @@ func LinKeyGenEndB(ses *Session) {
 
 func LinPreSignA(ses *Session) {
 	lin := ses.State.(*LinState)
+	//TODO Prompt for message?
 	lin.Message = "test"
 
 	suggestedPartialNonce, _ := rand.Int(rand.Reader, big.NewInt(1000))

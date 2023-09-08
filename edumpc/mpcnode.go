@@ -96,9 +96,17 @@ func (mpcn *MPCNode) SendMsg(mpcmsg *MPCMessage, ses *Session) {
 	mpcmsg.SessionID = ses.ID
 	ses.History = append(ses.History, mpcmsg)
 
+	// Handle protocol if not set in the message
+	if ses.Protocol == "" {
+		fmt.Println("Session without protocol set!!")
+	} else if mpcmsg.Protocol == "" {
+		mpcmsg.Protocol = ses.Protocol
+	} else if mpcmsg.Protocol != ses.Protocol {
+		fmt.Println("The protocol set in Session is different from the one sent in Message!!")
+	}
+
 	b, _ := json.Marshal(mpcmsg)
 	mpcn.topic.Publish(context.Background(), b)
-
 }
 
 var mutex = &sync.Mutex{}
