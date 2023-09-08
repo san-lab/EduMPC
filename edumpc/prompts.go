@@ -104,7 +104,11 @@ func SessionUI(mpcn *MPCNode, ses *Session) {
 			return
 		}
 		if res == details {
-			ses.Details(ses)
+			if ses.Details != nil {
+				ses.Details(ses)
+			} else {
+				History(ses)
+			}
 		}
 		if res == useraction {
 			ses.NextPrompt(ses)
