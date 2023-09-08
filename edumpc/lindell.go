@@ -353,6 +353,8 @@ func RepeatA(ses *Session) {
 
 		ses.Interactive = true
 		ses.NextPrompt = LinPreSignA
+	} else {
+		ses.Inactive = true
 	}
 }
 
