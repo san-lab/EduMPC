@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/san-lab/EduMPC/edumpc"
+	"github.com/san-lab/EduMPC/guessgame"
 	"github.com/san-lab/EduMPC/plumbing"
 	"github.com/san-lab/EduMPC/sepior"
 )
@@ -25,6 +26,7 @@ func main() {
 	fmt.Println("Peer count:", mpcn.PeerCount())
 	sepior.Init(mpcn)
 
+	guessgame.A()
 	edumpc.TopUI(mpcn)
 
 }
