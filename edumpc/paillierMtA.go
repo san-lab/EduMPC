@@ -29,6 +29,7 @@ const invited = "invitation received"
 const joined = "joined"
 const completed = "completed"
 const confirmed = "confirmed"
+const senderfinal = "completed and confirmed"
 
 func NewPM2AState() *PM2AState {
 	st := new(PM2AState)
@@ -74,6 +75,10 @@ func myDetails(ses *Session) {
 		fmt.Println("Secret multiplicative share", sessionState.MulShare)
 		fmt.Println("Secret additive share", sessionState.AddShare)
 
+	case completed:
+		fmt.Println("Encrypted additive share received and decrypted")
+		fmt.Println("Secret multiplicative share", sessionState.MulShare)
+		fmt.Println("Secret additive share", sessionState.AddShare)
 	default:
 		fmt.Println("I don´t know where we are")
 	}
@@ -152,7 +157,6 @@ func HandlePM2AMessage(mpcm *MPCMessage, ses *Session) {
 		ses.Status = "invitation received"
 
 	case "save":
-		ses.Interactive = false
 		st := (ses.State).(*PM2AState)
 		msg := new(PM2AMessage)
 		err := json.Unmarshal([]byte(mpcm.Message), msg)
@@ -161,9 +165,10 @@ func HandlePM2AMessage(mpcm *MPCMessage, ses *Session) {
 		}
 		st.V1 = msg.V
 		st.AddShare = st.Priv.Decrypt(msg.V)
-		fmt.Println(msg.N.Cmp(st.AddShare))
-		ses.Status = "all completed"
-		ses.Respond(&MPCMessage{Command: "OK"})
+		ses.Interactive = true
+		ses.Status = completed
+		ses.NextPrompt = SendOK
+		//ses.Respond(&MPCMessage{Command: "OK"})
 
 	case "OK":
 		ses.Status = confirmed
@@ -173,6 +178,22 @@ func HandlePM2AMessage(mpcm *MPCMessage, ses *Session) {
 
 	}
 
+}
+
+func SendOK(ses *Session) {
+	items := []string{"Yes", "No"}
+	pr := promptui.Select{Label: "Acknowledge successful process",
+		Items: items,
+	}
+	_, res, _ := pr.Run()
+	switch res {
+	case "No":
+		return
+	case "Yes":
+		ses.Respond(&MPCMessage{Command: "OK"})
+		ses.Status = senderfinal
+		ses.Interactive = false
+	}
 }
 
 func PM2APromptJoin(ses *Session) {

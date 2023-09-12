@@ -1,6 +1,7 @@
 package guessgame
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
 
@@ -9,6 +10,14 @@ import (
 )
 
 const Guess = edumpc.Protocol("Guess the number game")
+const newgame = "New game"
+const joingame = "Invitation received"
+const resolution = "Number guessed"
+
+type GuessState struct {
+	Challenge *big.Int
+	Tries     int
+}
 
 func init() {
 	edumpc.Protocols[Guess] = &edumpc.SessionHandler{GameInvite, GameAccept}
@@ -31,6 +40,8 @@ func GameInvite(mpcn *edumpc.MPCNode) {
 	mpcm.Protocol = Guess
 	ses.HandleMessage = HandleGuessMessage
 	ses.Respond(mpcm)
+	ses.Status = newgame
+	ses.Details = myDetails
 }
 
 func GameAccept(mpcn *edumpc.MPCNode, sessionID string) *edumpc.Session {
@@ -39,11 +50,13 @@ func GameAccept(mpcn *edumpc.MPCNode, sessionID string) *edumpc.Session {
 	ses.ID = sessionID
 	ses.Protocol = Guess
 	ses.Interactive = true
+	ses.Status = joingame
+	ses.Details = myDetails
 	ses.NextPrompt = GuessPrompt
 	ses.HandleMessage = HandleGuessMessage
 	mpcn.NewLocalSession(ses.ID, ses)
 	ses.Node = mpcn
-	ses.State = new(guessState)
+	ses.State = new(GuessState)
 	return ses
 
 	//Create a new session with id and protocol "Guess"
@@ -63,48 +76,81 @@ func HandleGuessMessage(mpcm *edumpc.MPCMessage, ses *edumpc.Session) {
 			fmt.Println("Error", err)
 		}
 
-		st := new(guessState)
-		st.challenge = challenge
+		st := new(GuessState)
+		st.Challenge = challenge
 		ses.State = st
 
 	case "success":
 		fmt.Println(mpcm.Message)
+		ses.Status = resolution
+		st := new(GuessState)
+		err := json.Unmarshal([]byte(mpcm.Message), &st)
+		if err != nil {
+			fmt.Println("Error unmarshalling")
+		}
+		ses.State = st
+		ses.Details = myDetails
 	}
 }
 
 func SetGuessPrompt(ses *edumpc.Session) *big.Int {
 
-	s := new(guessState)
-	s.challenge = edumpc.PromptForNumber("Give a number to guess", "")
+	s := new(GuessState)
+	s.Challenge = edumpc.PromptForNumber("Give a number to guess", "")
 	ses.State = s
-	return s.challenge
-}
-
-type guessState struct {
-	challenge *big.Int
-	tries     int
+	return s.Challenge
 }
 
 func GuessPrompt(ses *edumpc.Session) {
-	st, ok := ses.State.(*guessState)
+	st, ok := ses.State.(*GuessState)
 	if !ok {
 		fmt.Println("Error casting")
 	}
 	x := edumpc.PromptForNumber("Try your guess", "")
-	result := x.Cmp(st.challenge)
-	st.tries++
+	result := x.Cmp(st.Challenge)
+	st.Tries++
 	switch result {
 	case -1:
 		fmt.Println("Too small")
 	case 0:
-		fmt.Printf("Congratulations! You guessed it in %v tries\n", st.tries)
+		fmt.Printf("Congratulations! You guessed it in %v tries\n", st.Tries)
 		mpcm := new(edumpc.MPCMessage)
 		mpcm.Command = "success"
-		mpcm.Message = fmt.Sprintf("I have guessed your number in %v tries. The value is %v", st.tries, x)
+		//Send to the originator the number of tries
+		b, err := json.Marshal(st)
+		mpcm.Message = string(b)
+		if err != nil {
+			fmt.Println("Error marshalling")
+		}
+		//mpcm.Message = fmt.Sprintf("I have guessed your number in %v tries. The value is %v", st.tries, x)
 		mpcm.Protocol = Guess
 		ses.Respond(mpcm)
+		ses.Status = resolution
+		ses.Details = myDetails
 		ses.Interactive = false
 	case 1:
 		fmt.Println("Too big")
+	}
+}
+
+func myDetails(ses *edumpc.Session) {
+	fmt.Println("Session ID", ses.ID)
+	fmt.Println("Protocol", ses.Protocol)
+	//fmt.Printf("Status of the session:  challenge %v, number of tries %v\n", ses.Status.challenge, ses.Status.tries)
+	st, ok := ses.State.(*GuessState)
+	if !ok {
+		fmt.Println("Error casting")
+	}
+	switch ses.Status {
+	case newgame:
+		fmt.Printf("New game started. Number to guess: %v\n", st.Challenge)
+	case joingame:
+		fmt.Println("Invitation received from", ses.History[0].SenderID)
+		fmt.Printf("Current number of tries %v\n", st.Tries)
+	case resolution:
+		fmt.Printf("Game over! Number guessed: %v. Number of tries: %v \n", st.Challenge, st.Tries)
+
+	default:
+		fmt.Println("I don´t know where we are")
 	}
 }

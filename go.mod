@@ -2,8 +2,6 @@ module github.com/san-lab/EduMPC
 
 go 1.20
 
-replace gitlab.com/sepior/go-tsm-sdk => /home/przemek/go/src/gitlab.com/go-tsm-sdk
-
 //replace github.com/san-lab/EduMPC/sepior => ./sepior
 
 require (
@@ -15,7 +13,6 @@ require (
 )
 
 require (
-	filippo.io/edwards25519 v1.0.0 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -86,9 +83,7 @@ require (
 	github.com/quic-go/quic-go v0.33.0 // indirect
 	github.com/quic-go/webtransport-go v0.5.2 // indirect
 	github.com/raulk/go-watchdog v1.3.0 // indirect
-	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
-	gitlab.com/sepior/go-tsm-sdk v1.0.0
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/dig v1.15.0 // indirect
 	go.uber.org/fx v1.18.2 // indirect
