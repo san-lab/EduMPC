@@ -14,7 +14,7 @@ import (
 func main() {
 	// parse some flags
 
-	roomFlag := flag.String("mpcnet", "DEFMPCNET", "name of chat room to join")
+	roomFlag := flag.String("mpcnet", "DEFMPCNET", "name of the topic for the network")
 	flag.Parse()
 	edumpc.MPCNET = *roomFlag
 
