@@ -12,6 +12,24 @@ import (
 	"github.com/manifoldco/promptui"
 )
 
+const command_keygen_join_A = "keygen_join_A"
+const command_keygen_confirm_A = "keygen_confirm_A"
+const command_presign_end_A = "presign_end_A"
+const command_finish_A = "finish_A"
+
+const command_keygen_end_B = "keygen_end_B"
+const command_presign_B = "presign_B"
+const command_sign_end_B = "sign_end_B"
+
+const status_awaiting = "Awaiting for other party to connect. Generated partial keys"
+const status_joined = "Joined the session, generated and sent partial keys"
+const status_keygen_end = "Key generation stage finished. Public ECDSA key reconstructed"
+const status_nonce_sent = "Partial nonce generated and sent"
+const status_presign_end = "Presign stage finished. Public nonce reconstrucuted"
+const status_partialsig_sent = "Computed and sent partial signature"
+const status_signed = "Computed final signature, and sent (validity) to other party"
+const status_finished = "Finished protocol iteration"
+
 type LinKeyGenMessage struct {
 	PubShare *ECPoint
 	EncShare *big.Int
@@ -58,7 +76,6 @@ func NewLinState() *LinState {
 	return st
 }
 
-// Color according to variable set or not set. Also trims the string
 func Colorize(message, color string) string {
 	switch color {
 	case "red":
@@ -80,6 +97,7 @@ func Trim(message string, length int) string {
 
 }
 
+// Color according to variable set or not set. Also trims the string
 func ColorAndTrim(message string, length int, values ...string) string {
 	color := "green"
 	if values[0] == "" || values[0] == "false" || values[0] == "<nil>" {
@@ -119,56 +137,53 @@ func PrintLinState(ses *Session) {
 	fmt.Println("Role:", st.Role)
 
 	fmt.Println("----------")
-	fmt.Println(ColorAndTrim("Private key", length, fmt.Sprintf("%v", st.Priv != nil)))
-	fmt.Println(ColorAndTrim("Pub N", length, st.Pub.N.String()))
+	fmt.Println(ColorAndTrim("Paillier Private Key", length, fmt.Sprintf("%v", st.Priv != nil)))
+	fmt.Println(ColorAndTrim("Paillier Public Key N", length, st.Pub.N.String()))
 	if st.PubEcdsa == nil {
-		fmt.Println(ColorAndTrim("PubEcdsa", length, "<nil>"))
+		fmt.Println(ColorAndTrim("ECDSA Public Key", length, "<nil>"))
 	} else {
-		fmt.Println(ColorAndTrim("PubEcdsa", length, st.PubEcdsa.X.String(), st.PubEcdsa.Y.String()))
+		fmt.Println(ColorAndTrim("ECDSA Public Key", length, st.PubEcdsa.X.String(), st.PubEcdsa.Y.String()))
 	}
-
-	fmt.Println(ColorAndTrim("Secret share A", length, st.ShareA.String()))
-	fmt.Println(ColorAndTrim("Secret share B", length, st.ShareB.String()))
-	fmt.Println(ColorAndTrim("EncShareB", length, st.EncShareB.String()))
-
 	if st.PubShareA == nil {
-		fmt.Println(ColorAndTrim("PubShareA", length, "<nil>"))
+		fmt.Println(ColorAndTrim("ECDSA Public Share A", length, "<nil>"))
 	} else {
-		fmt.Println(ColorAndTrim("PubShareA", length, st.PubShareA.X.String(), st.PubShareA.Y.String()))
+		fmt.Println(ColorAndTrim("ECDSA Public Share A", length, st.PubShareA.X.String(), st.PubShareA.Y.String()))
 	}
 
 	if st.PubShareB == nil {
-		fmt.Println(ColorAndTrim("PubShareB", length, "<nil>"))
+		fmt.Println(ColorAndTrim("ECDSA Public Share B", length, "<nil>"))
 	} else {
-		fmt.Println(ColorAndTrim("PubShareB", length, st.PubShareB.X.String(), st.PubShareB.Y.String()))
+		fmt.Println(ColorAndTrim("ECDSA Public Share B", length, st.PubShareB.X.String(), st.PubShareB.Y.String()))
 	}
+	fmt.Println(ColorAndTrim("ECDSA Secret Share A", length, st.ShareA.String()))
+	fmt.Println(ColorAndTrim("ECDSA Secret Share B", length, st.ShareB.String()))
+	fmt.Println(ColorAndTrim("ECDSA Encrypted Share B", length, st.EncShareB.String()))
 
 	fmt.Println("----------")
-	fmt.Println(ColorAndTrim("Message", length, st.Message))
-	fmt.Println(ColorAndTrim("PartialNonceA", length, st.PartialNonceA.String()))
-	fmt.Println(ColorAndTrim("PartialNonceB", length, st.PartialNonceB.String()))
-
+	fmt.Println(ColorAndTrim("Message To Sign", length, st.Message))
 	if st.PubNonce == nil {
-		fmt.Println(ColorAndTrim("PubNonce", length, "<nil>"))
+		fmt.Println(ColorAndTrim("Public Nonce", length, "<nil>"))
 	} else {
-		fmt.Println(ColorAndTrim("PubNonce", length, st.PubNonce.X.String(), st.PubNonce.Y.String()))
+		fmt.Println(ColorAndTrim("Public Nonce", length, st.PubNonce.X.String(), st.PubNonce.Y.String()))
 	}
 
 	if st.PubPartialNonceA == nil {
-		fmt.Println(ColorAndTrim("PubPartialNonceA", length, "<nil>"))
+		fmt.Println(ColorAndTrim("Public Partial Nonce A", length, "<nil>"))
 	} else {
-		fmt.Println(ColorAndTrim("PubPartialNonceA", length, st.PubPartialNonceA.X.String(), st.PubPartialNonceA.Y.String()))
+		fmt.Println(ColorAndTrim("Public Partial Nonce A", length, st.PubPartialNonceA.X.String(), st.PubPartialNonceA.Y.String()))
 	}
 
 	if st.PubPartialNonceB == nil {
-		fmt.Println(ColorAndTrim("PubPartialNonceB", length, "<nil>"))
+		fmt.Println(ColorAndTrim("Public Partial Nonce B", length, "<nil>"))
 	} else {
-		fmt.Println(ColorAndTrim("PubPartialNonceB", length, st.PubPartialNonceB.X.String(), st.PubPartialNonceB.Y.String()))
+		fmt.Println(ColorAndTrim("Public Partial Nonce B", length, st.PubPartialNonceB.X.String(), st.PubPartialNonceB.Y.String()))
 	}
+	fmt.Println(ColorAndTrim("Partial Secret Nonce A", length, st.PartialNonceA.String()))
+	fmt.Println(ColorAndTrim("Partial Secret Nonce B", length, st.PartialNonceB.String()))
 
 	fmt.Println("----------")
-	fmt.Println(ColorAndTrim("D", length, st.D.String()))
-	fmt.Println(ColorAndTrim("S", length, st.S.String()))
+	fmt.Println(ColorAndTrim("Partial Signature D", length, st.D.String()))
+	fmt.Println(ColorAndTrim("Final signature S", length, st.S.String()))
 
 	if st.Role == "receiver" {
 		fmt.Println("----------")
@@ -184,7 +199,8 @@ func PrintLinState(ses *Session) {
 func LinDetails(ses *Session) {
 	PrintLinState(ses)
 	fmt.Println("----------")
-	fmt.Println(promptui.Styler(promptui.FGBold)("Status:"), ses.Status) // TODO improve readability here
+	fmt.Println(promptui.Styler(promptui.FGBold)("Status:"), ses.Status)
+	fmt.Println("----------")
 }
 
 func InitNewLin(mpcn *MPCNode) {
@@ -204,7 +220,7 @@ func InitNewLin(mpcn *MPCNode) {
 	st.PubShareB = &ECPoint{Xs_x, Xs_y}
 
 	mpcm := new(MPCMessage)
-	mpcm.Command = "keygen_join_A"
+	mpcm.Command = command_keygen_join_A
 	msg := &LinKeyGenMessage{}
 	msg.Pub = st.Pub
 	msg.EncShare = st.EncShareB
@@ -231,7 +247,7 @@ func NewSenderLinSession(mpcn *MPCNode, sessionID string) *Session {
 	st := NewLinState()
 	st.Role = "sender"
 	ses.State = st
-	ses.Status = "awaiting peer"
+	ses.Status = status_awaiting
 	ses.ID = sessionID
 	mpcn.sessions[ses.ID] = ses
 	ses.Node = mpcn
@@ -285,11 +301,11 @@ func LinPromptJoinA(ses *Session) {
 		msg := &LinKeyGenEndMessage{lin.PubShareA, lin.PubEcdsa}
 		tmp, _ := json.Marshal(msg)
 		mpcm.Message = string(tmp)
-		mpcm.Command = "keygen_end_B"
+		mpcm.Command = command_keygen_end_B
 		mpcm.Protocol = Lin
 		ses.Respond(mpcm)
 		ses.Interactive = false
-		ses.Status = "A joined"
+		ses.Status = status_joined
 	}
 }
 
@@ -305,11 +321,11 @@ func LinKeyGenEndB(ses *Session) {
 		fmt.Println("successfully computed ecdsa public key")
 		mpcm.Message = "ok"
 	}
-	mpcm.Command = "keygen_confirm_A"
+	mpcm.Command = command_keygen_confirm_A
 	mpcm.Protocol = Lin
 	ses.Respond(mpcm)
 	ses.Interactive = false
-	ses.Status = "keygen end"
+	ses.Status = status_keygen_end
 }
 
 func LinPreSignA(ses *Session) {
@@ -336,10 +352,10 @@ func LinPreSignA(ses *Session) {
 	mpcm := new(MPCMessage)
 	tmp, _ := json.Marshal(msg)
 	mpcm.Message = string(tmp)
-	mpcm.Command = "presign_B"
+	mpcm.Command = command_presign_B
 	ses.Respond(mpcm)
 	ses.Interactive = false
-	ses.Status = "A sent partial nonce"
+	ses.Status = status_nonce_sent
 }
 
 func LinPreSignB(ses *Session) {
@@ -355,17 +371,17 @@ func LinPreSignB(ses *Session) {
 	mpcm := new(MPCMessage)
 	tmp, _ := json.Marshal(msg)
 	mpcm.Message = string(tmp)
-	mpcm.Command = "presign_end_A"
+	mpcm.Command = command_presign_end_A
 	ses.Respond(mpcm)
 	ses.Interactive = false
-	ses.Status = "B sent partial nonce"
+	ses.Status = status_presign_end
 }
 
 func LinPreSignEndA(ses *Session) {
 	lin := ses.State.(*LinState)
 	lin.PubNonce = new(ECPoint)
 	lin.PubNonce.X, lin.PubNonce.Y = lin.PubEcdsa.Curve.ScalarMult(lin.PubPartialNonceB.X, lin.PubPartialNonceB.Y, lin.PartialNonceA.Bytes())
-	ses.Status = "finished presign"
+	ses.Status = status_presign_end
 }
 
 func LinSignA(ses *Session) {
@@ -388,10 +404,10 @@ func LinSignA(ses *Session) {
 	mpcm := new(MPCMessage)
 	tmp, _ := json.Marshal(lin.D)
 	mpcm.Message = string(tmp)
-	mpcm.Command = "sign_end_B"
+	mpcm.Command = command_sign_end_B
 	ses.Respond(mpcm)
 	ses.Interactive = false
-	ses.Status = "A sent partial signature"
+	ses.Status = status_partialsig_sent
 }
 
 func LinSignB(ses *Session) {
@@ -406,16 +422,16 @@ func LinSignB(ses *Session) {
 	mpcm := new(MPCMessage)
 	tmp, _ := json.Marshal(verifies)
 	mpcm.Message = string(tmp)
-	mpcm.Command = "finish_A"
+	mpcm.Command = command_finish_A
 	ses.Respond(mpcm)
 	ses.Interactive = false
-	ses.Status = "B verified final signature"
+	ses.Status = status_signed
 }
 
 func FinishA(ses *Session) {
 	lin := ses.State.(*LinState)
 	fmt.Println("Signature:", lin.Bits[len(lin.Bits)-1])
-	ses.Status = "finished protocol iteration"
+	ses.Status = status_finished
 
 	if lin.Attack {
 		lin.L.Add(lin.L, big.NewInt(1))
@@ -454,7 +470,8 @@ func RepeatA(ses *Session) {
 
 func HandleLinMessageA(mpcm *MPCMessage, ses *Session) {
 	switch mpcm.Command {
-	case "keygen_join_A":
+
+	case command_keygen_join_A:
 		ses.Interactive = true
 		msg := new(LinKeyGenMessage)
 		json.Unmarshal([]byte(mpcm.Message), msg)
@@ -464,16 +481,17 @@ func HandleLinMessageA(mpcm *MPCMessage, ses *Session) {
 		st.EncShareB = msg.EncShare
 		ses.NextPrompt = LinPromptJoinA
 
-	case "keygen_confirm_A":
+	case command_keygen_confirm_A:
 		if mpcm.Message == "ok" {
 			fmt.Println("keygen_confirm ok")
+			ses.Status = status_keygen_end
 			ses.Interactive = true
 			ses.NextPrompt = LinPreSignA
 		} else {
 			fmt.Println("failed keygen from", mpcm.SenderID)
 		}
 
-	case "presign_end_A":
+	case command_presign_end_A:
 		msg := new(LinPreSignMessage)
 		json.Unmarshal([]byte(mpcm.Message), msg)
 		st := (ses.State).(*LinState)
@@ -484,7 +502,7 @@ func HandleLinMessageA(mpcm *MPCMessage, ses *Session) {
 		ses.Interactive = true
 		ses.NextPrompt = LinSignA
 
-	case "finish_A":
+	case command_finish_A:
 		verifies := new(bool)
 		json.Unmarshal([]byte(mpcm.Message), verifies)
 		st := (ses.State).(*LinState)
@@ -504,7 +522,7 @@ func HandleLinMessageA(mpcm *MPCMessage, ses *Session) {
 func HandleLinMessageB(mpcm *MPCMessage, ses *Session) {
 	switch mpcm.Command {
 
-	case "keygen_end_B":
+	case command_keygen_end_B:
 		msg := new(LinKeyGenEndMessage)
 		json.Unmarshal([]byte(mpcm.Message), msg)
 		st := (ses.State).(*LinState)
@@ -512,7 +530,7 @@ func HandleLinMessageB(mpcm *MPCMessage, ses *Session) {
 		st.PubShareA = msg.PubShare
 		LinKeyGenEndB(ses)
 
-	case "presign_B":
+	case command_presign_B:
 		msg := new(LinPreSignMessage)
 		json.Unmarshal([]byte(mpcm.Message), msg)
 		st := (ses.State).(*LinState)
@@ -521,7 +539,7 @@ func HandleLinMessageB(mpcm *MPCMessage, ses *Session) {
 		ses.Interactive = false
 		LinPreSignB(ses)
 
-	case "sign_end_B":
+	case command_sign_end_B:
 		D := new(big.Int)
 		json.Unmarshal([]byte(mpcm.Message), D)
 		st := (ses.State).(*LinState)
@@ -534,79 +552,3 @@ func HandleLinMessageB(mpcm *MPCMessage, ses *Session) {
 		return
 	}
 }
-
-/*
-func HandleLinMessageA(mpcm *MPCMessage, ses *Session) {
-	switch mpcm.Command {
-	case "keygen_join_A":
-		ses.Interactive = true
-		msg := new(LinKeyGenMessage)
-		json.Unmarshal([]byte(mpcm.Message), msg)
-		st := (ses.State).(*LinState)
-		st.Pub = msg.Pub
-		st.PubShareB = msg.PubShare
-		st.EncShareB = msg.EncShare
-		ses.NextPrompt = LinPromptJoinA
-
-	case "keygen_end_B":
-		msg := new(LinKeyGenEndMessage)
-		json.Unmarshal([]byte(mpcm.Message), msg)
-		st := (ses.State).(*LinState)
-		st.PubEcdsa = msg.PubEcdsa
-		st.PubShareA = msg.PubShare
-		LinKeyGenEndB(ses)
-
-	case "keygen_confirm_A":
-		if mpcm.Message == "ok" {
-			fmt.Println("keygen_confirm ok")
-			ses.Interactive = true
-			ses.NextPrompt = LinPreSignA
-		} else {
-			fmt.Println("failed keygen from", mpcm.SenderID)
-		}
-
-	case "presign_B":
-		msg := new(LinPreSignMessage)
-		json.Unmarshal([]byte(mpcm.Message), msg)
-		st := (ses.State).(*LinState)
-		st.Message = msg.Message
-		st.PubPartialNonceA = msg.PubPartialNonce
-		ses.Interactive = false
-		LinPreSignB(ses)
-
-	case "presign_end_A":
-		msg := new(LinPreSignMessage)
-		json.Unmarshal([]byte(mpcm.Message), msg)
-		st := (ses.State).(*LinState)
-		st.PubPartialNonceB = msg.PubPartialNonce
-		ses.Interactive = false
-		LinPreSignEndA(ses)
-
-		ses.Interactive = true
-		ses.NextPrompt = LinSignA
-
-	case "sign_end_B":
-		D := new(big.Int)
-		json.Unmarshal([]byte(mpcm.Message), D)
-		st := (ses.State).(*LinState)
-		st.D = D
-		ses.Interactive = false
-		LinSignB(ses)
-
-	case "finish_A":
-		verifies := new(bool)
-		json.Unmarshal([]byte(mpcm.Message), verifies)
-		st := (ses.State).(*LinState)
-		st.Bits = append(st.Bits, *verifies) // true = 0, false = 1
-		ses.Interactive = false
-		FinishA(ses)
-
-		ses.Interactive = true
-		ses.NextPrompt = RepeatA
-
-	default:
-		fmt.Println(mpcm.Command)
-		return
-	}
-}
-*/
