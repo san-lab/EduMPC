@@ -2,6 +2,8 @@ package edumpc
 
 import (
 	"fmt"
+	"sort"
+
 	//	"strconv"
 	"math/big"
 
@@ -69,8 +71,10 @@ func ConfigUI(mpcn *MPCNode) {
 
 func SessionSelectUI(mpcn *MPCNode) {
 	items := []string{}
-	for key, _ := range mpcn.sessions {
-		items = append(items, key)
+	for key, ses := range mpcn.sessions {
+		if !ses.Inactive {
+			items = append(items, key)
+		}
 	}
 	items = append(items, news)
 	items = append(items, up)
@@ -134,12 +138,21 @@ func History(ses *Session) {
 
 func StartNewSessionUI(mpcn *MPCNode) {
 	items := []string{}
-	for prot := range Protocols {
-		if prot != dumb {
-			items = append(items, string(prot))
-		}
 
+	// Extract the keys from the map
+	var keys []string
+	for key := range Protocols {
+		keys = append(keys, string(key))
 	}
+	// Sort the keys lexicographically
+	sort.Strings(keys)
+
+	for _, prot := range keys {
+		if prot != string(dumb) {
+			items = append(items, prot)
+		}
+	}
+
 	items = append(items, up)
 	pr := promptui.Select{
 		Label: "New session",

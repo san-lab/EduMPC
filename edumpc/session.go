@@ -16,6 +16,7 @@ type Session struct {
 	History           []*MPCMessage
 	messages          map[string]bool
 	Status            string
+	Inactive          bool
 	Node              *MPCNode
 	State             interface{}
 }
