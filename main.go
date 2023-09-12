@@ -14,8 +14,9 @@ import (
 func main() {
 	// parse some flags
 
-	edumpc.MPCNET = *flag.String("mpcnet", "DEFMPCNET", "name of chat room to join")
+	roomFlag := flag.String("mpcnet", "DEFMPCNET", "name of chat room to join")
 	flag.Parse()
+	edumpc.MPCNET = *roomFlag
 
 	mpcn, err := plumbing.GetMPCNode()
 
