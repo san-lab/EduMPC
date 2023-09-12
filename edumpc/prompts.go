@@ -74,6 +74,9 @@ func SessionSelectUI(mpcn *MPCNode) {
 	for key, ses := range mpcn.sessions {
 		if !ses.Inactive {
 			items = append(items, key)
+		} else {
+			greyKey := promptui.Styler(promptui.FGFaint)(key)
+			items = append(items, greyKey)
 		}
 	}
 	items = append(items, news)

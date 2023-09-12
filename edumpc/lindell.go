@@ -58,40 +58,133 @@ func NewLinState() *LinState {
 	return st
 }
 
+// Color according to variable set or not set. Also trims the string
+func Colorize(message, color string) string {
+	switch color {
+	case "red":
+		message = promptui.Styler(promptui.FGRed)(message)
+	case "green":
+		message = promptui.Styler(promptui.FGGreen)(message)
+	case "magenta":
+		message = promptui.Styler(promptui.FGMagenta)(message)
+	default:
+	}
+	return message
+}
+
+func Trim(message string, length int) string {
+	if len(message) > length {
+		return fmt.Sprintf("%s...", message[0:length])
+	}
+	return message
+
+}
+
+func ColorAndTrim(message string, length int, values ...string) string {
+	color := "green"
+	if values[0] == "" || values[0] == "false" || values[0] == "<nil>" {
+		color = "red"
+	}
+	coloredMessage := Colorize(message, color)
+	trimmedValues := ""
+	for _, v := range values {
+		if trimmedValues == "" {
+			trimmedValues = Trim(v, length)
+		} else {
+			trimmedValues = fmt.Sprintf("%s, %s", trimmedValues, Trim(v, length))
+		}
+
+	}
+	return fmt.Sprintf("%s: %s", coloredMessage, trimmedValues)
+}
+
+func formatBits(reversedIterations []bool) string {
+	result := ""
+	for i := len(reversedIterations) - 1; i >= 0; i-- {
+		if reversedIterations[i] {
+			result = result + "0"
+		} else {
+			result = result + "1"
+		}
+	}
+	return result
+}
+
 func PrintLinState(ses *Session) {
+	// Dont print the whole numbers, just the beginning
+	length := 40
+
 	fmt.Println("Printing state...")
 	st := (ses.State).(*LinState)
 	fmt.Println("Role:", st.Role)
-	fmt.Println("Private key:", st.Priv != nil)
-	n := big.NewInt(0)
-	if st.Pub != nil {
-		n = st.Pub.N
-	}
-	fmt.Println("Pub N:", n)
-	fmt.Println("PubEcdsa:", st.PubEcdsa)
-	fmt.Println("Secret share A:", st.ShareA)
-	fmt.Println("Secret share B:", st.ShareB)
-	fmt.Println("EncShareB:", st.EncShareB)
-	fmt.Println("PubShareA:", st.PubShareA)
-	fmt.Println("PubShareB:", st.PubShareB)
-	fmt.Println("Message:", st.Message)
-	fmt.Println("PartialNonceA:", st.PartialNonceA)
-	fmt.Println("PartialNonceB:", st.PartialNonceB)
-	fmt.Println("PubNonce:", st.PubNonce)
-	fmt.Println("PubPartialNonceA:", st.PubPartialNonceA)
-	fmt.Println("PubPartialNonceB:", st.PubPartialNonceB)
-	fmt.Println("D:", st.D)
-	fmt.Println("S:", st.S)
 
-	fmt.Println("Attack:", st.Attack)
-	fmt.Println("Bits / Verifies? (reversed list...):", st.Bits) // TODO improve visuals
-	fmt.Println("L:", st.L)
-	fmt.Println("Y_b:", st.Y_b)
+	fmt.Println("----------")
+	fmt.Println(ColorAndTrim("Private key", length, fmt.Sprintf("%v", st.Priv != nil)))
+	fmt.Println(ColorAndTrim("Pub N", length, st.Pub.N.String()))
+	if st.PubEcdsa == nil {
+		fmt.Println(ColorAndTrim("PubEcdsa", length, "<nil>"))
+	} else {
+		fmt.Println(ColorAndTrim("PubEcdsa", length, st.PubEcdsa.X.String(), st.PubEcdsa.Y.String()))
+	}
+
+	fmt.Println(ColorAndTrim("Secret share A", length, st.ShareA.String()))
+	fmt.Println(ColorAndTrim("Secret share B", length, st.ShareB.String()))
+	fmt.Println(ColorAndTrim("EncShareB", length, st.EncShareB.String()))
+
+	if st.PubShareA == nil {
+		fmt.Println(ColorAndTrim("PubShareA", length, "<nil>"))
+	} else {
+		fmt.Println(ColorAndTrim("PubShareA", length, st.PubShareA.X.String(), st.PubShareA.Y.String()))
+	}
+
+	if st.PubShareB == nil {
+		fmt.Println(ColorAndTrim("PubShareB", length, "<nil>"))
+	} else {
+		fmt.Println(ColorAndTrim("PubShareB", length, st.PubShareB.X.String(), st.PubShareB.Y.String()))
+	}
+
+	fmt.Println("----------")
+	fmt.Println(ColorAndTrim("Message", length, st.Message))
+	fmt.Println(ColorAndTrim("PartialNonceA", length, st.PartialNonceA.String()))
+	fmt.Println(ColorAndTrim("PartialNonceB", length, st.PartialNonceB.String()))
+
+	if st.PubNonce == nil {
+		fmt.Println(ColorAndTrim("PubNonce", length, "<nil>"))
+	} else {
+		fmt.Println(ColorAndTrim("PubNonce", length, st.PubNonce.X.String(), st.PubNonce.Y.String()))
+	}
+
+	if st.PubPartialNonceA == nil {
+		fmt.Println(ColorAndTrim("PubPartialNonceA", length, "<nil>"))
+	} else {
+		fmt.Println(ColorAndTrim("PubPartialNonceA", length, st.PubPartialNonceA.X.String(), st.PubPartialNonceA.Y.String()))
+	}
+
+	if st.PubPartialNonceB == nil {
+		fmt.Println(ColorAndTrim("PubPartialNonceB", length, "<nil>"))
+	} else {
+		fmt.Println(ColorAndTrim("PubPartialNonceB", length, st.PubPartialNonceB.X.String(), st.PubPartialNonceB.Y.String()))
+	}
+
+	fmt.Println("----------")
+	fmt.Println(ColorAndTrim("D", length, st.D.String()))
+	fmt.Println(ColorAndTrim("S", length, st.S.String()))
+
+	if st.Role == "receiver" {
+		fmt.Println("----------")
+		fmt.Println("Attack:", st.Attack)
+		fmt.Println("Verifies iteration?:", st.Bits)
+		fmt.Println("Guessed bits so far:", Colorize(formatBits(st.Bits), "magenta"))
+		fmt.Println("Guesse number so far (Y_b):", Colorize(st.Y_b.String(), "magenta"))
+		fmt.Println("Iteration (L):", st.L)
+
+	}
 }
 
 func LinDetails(ses *Session) {
 	PrintLinState(ses)
-	fmt.Println(ses.History) // TODO remove history?
+	fmt.Println("----------")
+	fmt.Println(promptui.Styler(promptui.FGBold)("Status:"), ses.Status) // TODO improve readability here
 }
 
 func InitNewLin(mpcn *MPCNode) {
@@ -132,7 +225,7 @@ func NewSenderLinSession(mpcn *MPCNode, sessionID string) *Session {
 	ses := new(Session)
 	ses.ID = sessionID
 	ses.Protocol = Lin
-	ses.HandleMessage = HandleLinMessage
+	ses.HandleMessage = HandleLinMessageB
 	ses.Details = LinDetails //PrintLinState
 	ses.Interactive = true
 	st := NewLinState()
@@ -147,6 +240,7 @@ func NewSenderLinSession(mpcn *MPCNode, sessionID string) *Session {
 
 func NewRecLinSession(mpcn *MPCNode, sessionID string) *Session {
 	ses := NewSenderLinSession(mpcn, sessionID)
+	ses.HandleMessage = HandleLinMessageA
 	st := (ses.State).(*LinState)
 	st.Role = "receiver"
 	return ses
@@ -358,7 +452,91 @@ func RepeatA(ses *Session) {
 	}
 }
 
-func HandleLinMessage(mpcm *MPCMessage, ses *Session) {
+func HandleLinMessageA(mpcm *MPCMessage, ses *Session) {
+	switch mpcm.Command {
+	case "keygen_join_A":
+		ses.Interactive = true
+		msg := new(LinKeyGenMessage)
+		json.Unmarshal([]byte(mpcm.Message), msg)
+		st := (ses.State).(*LinState)
+		st.Pub = msg.Pub
+		st.PubShareB = msg.PubShare
+		st.EncShareB = msg.EncShare
+		ses.NextPrompt = LinPromptJoinA
+
+	case "keygen_confirm_A":
+		if mpcm.Message == "ok" {
+			fmt.Println("keygen_confirm ok")
+			ses.Interactive = true
+			ses.NextPrompt = LinPreSignA
+		} else {
+			fmt.Println("failed keygen from", mpcm.SenderID)
+		}
+
+	case "presign_end_A":
+		msg := new(LinPreSignMessage)
+		json.Unmarshal([]byte(mpcm.Message), msg)
+		st := (ses.State).(*LinState)
+		st.PubPartialNonceB = msg.PubPartialNonce
+		ses.Interactive = false
+		LinPreSignEndA(ses)
+
+		ses.Interactive = true
+		ses.NextPrompt = LinSignA
+
+	case "finish_A":
+		verifies := new(bool)
+		json.Unmarshal([]byte(mpcm.Message), verifies)
+		st := (ses.State).(*LinState)
+		st.Bits = append(st.Bits, *verifies) // true = 0, false = 1
+		ses.Interactive = false
+		FinishA(ses)
+
+		ses.Interactive = true
+		ses.NextPrompt = RepeatA
+
+	default:
+		fmt.Println("shouldnt be here... Command:", mpcm.Command)
+		return
+	}
+}
+
+func HandleLinMessageB(mpcm *MPCMessage, ses *Session) {
+	switch mpcm.Command {
+
+	case "keygen_end_B":
+		msg := new(LinKeyGenEndMessage)
+		json.Unmarshal([]byte(mpcm.Message), msg)
+		st := (ses.State).(*LinState)
+		st.PubEcdsa = msg.PubEcdsa
+		st.PubShareA = msg.PubShare
+		LinKeyGenEndB(ses)
+
+	case "presign_B":
+		msg := new(LinPreSignMessage)
+		json.Unmarshal([]byte(mpcm.Message), msg)
+		st := (ses.State).(*LinState)
+		st.Message = msg.Message
+		st.PubPartialNonceA = msg.PubPartialNonce
+		ses.Interactive = false
+		LinPreSignB(ses)
+
+	case "sign_end_B":
+		D := new(big.Int)
+		json.Unmarshal([]byte(mpcm.Message), D)
+		st := (ses.State).(*LinState)
+		st.D = D
+		ses.Interactive = false
+		LinSignB(ses)
+
+	default:
+		fmt.Println("shouldnt be here... Command:", mpcm.Command)
+		return
+	}
+}
+
+/*
+func HandleLinMessageA(mpcm *MPCMessage, ses *Session) {
 	switch mpcm.Command {
 	case "keygen_join_A":
 		ses.Interactive = true
@@ -431,3 +609,4 @@ func HandleLinMessage(mpcm *MPCMessage, ses *Session) {
 		return
 	}
 }
+*/
