@@ -20,15 +20,20 @@ const command_finish_A = "finish_A"
 const command_keygen_end_B = "keygen_end_B"
 const command_presign_B = "presign_B"
 const command_sign_end_B = "sign_end_B"
+const command_restart_B = "restart_B"
+const command_inactive_B = "set_inactive_B"
 
 const status_awaiting = "Awaiting for other party to connect. Generated partial keys"
+const status_received_invite = "Received the invitation and the public information needed to join the session"
 const status_joined = "Joined the session, generated and sent partial keys"
 const status_keygen_end = "Key generation stage finished. Public ECDSA key reconstructed"
 const status_nonce_sent = "Partial nonce generated and sent"
 const status_presign_end = "Presign stage finished. Public nonce reconstrucuted"
 const status_partialsig_sent = "Computed and sent partial signature"
-const status_signed = "Computed final signature, and sent (validity) to other party"
+const status_signed_true = "Computed final signature. Signature is VALID. Sent validity to other party"
+const status_signed_false = "Computed final signature. Signature is INVALID. Sent validity to other party"
 const status_finished = "Finished protocol iteration"
+const status_restarting = "Starting a new signature iteration"
 
 type LinKeyGenMessage struct {
 	PubShare *ECPoint
@@ -190,7 +195,7 @@ func PrintLinState(ses *Session) {
 		fmt.Println("Attack:", st.Attack)
 		fmt.Println("Verifies iteration?:", st.Bits)
 		fmt.Println("Guessed bits so far:", Colorize(formatBits(st.Bits), "magenta"))
-		fmt.Println("Guesse number so far (Y_b):", Colorize(st.Y_b.String(), "magenta"))
+		fmt.Println("Guessed number so far (Y_b):", Colorize(st.Y_b.String(), "magenta"))
 		fmt.Println("Iteration (L):", st.L)
 
 	}
@@ -257,6 +262,7 @@ func NewSenderLinSession(mpcn *MPCNode, sessionID string) *Session {
 func NewRecLinSession(mpcn *MPCNode, sessionID string) *Session {
 	ses := NewSenderLinSession(mpcn, sessionID)
 	ses.HandleMessage = HandleLinMessageA
+	ses.Status = status_received_invite
 	st := (ses.State).(*LinState)
 	st.Role = "receiver"
 	return ses
@@ -318,7 +324,6 @@ func LinKeyGenEndB(ses *Session) {
 		fmt.Println("wrong ecdsa public key")
 		mpcm.Message = "ko"
 	} else {
-		fmt.Println("successfully computed ecdsa public key")
 		mpcm.Message = "ok"
 	}
 	mpcm.Command = command_keygen_confirm_A
@@ -330,9 +335,8 @@ func LinKeyGenEndB(ses *Session) {
 
 func LinPreSignA(ses *Session) {
 	lin := ses.State.(*LinState)
-	//TODO Prompt for message?
-	lin.Message = "test"
 
+	lin.Message = "test" // TODO Prompt for message?
 	suggestedPartialNonce, _ := rand.Int(rand.Reader, big.NewInt(1000))
 
 	if lin.Attack {
@@ -425,12 +429,16 @@ func LinSignB(ses *Session) {
 	mpcm.Command = command_finish_A
 	ses.Respond(mpcm)
 	ses.Interactive = false
-	ses.Status = status_signed
+	if verifies {
+		ses.Status = status_signed_true
+	} else {
+		ses.Status = status_signed_false
+	}
+
 }
 
 func FinishA(ses *Session) {
 	lin := ses.State.(*LinState)
-	fmt.Println("Signature:", lin.Bits[len(lin.Bits)-1])
 	ses.Status = status_finished
 
 	if lin.Attack {
@@ -442,7 +450,7 @@ func FinishA(ses *Session) {
 }
 
 func RepeatA(ses *Session) {
-	lin := ses.State.(*LinState)
+	//lin := ses.State.(*LinState)
 
 	items := []string{"Yes", "No", up}
 	pr := promptui.Select{Label: "Start another signing round?",
@@ -450,22 +458,30 @@ func RepeatA(ses *Session) {
 	}
 	_, res, _ := pr.Run()
 	if res == "Yes" {
-
 		// State cleanup for better readeablity
-		lin.Message = ""
-		lin.PartialNonceA = nil
-		lin.PartialNonceB = nil
-		lin.PubNonce = nil
-		lin.PubPartialNonceA = nil
-		lin.PubPartialNonceB = nil
-		lin.D = nil
-		lin.S = nil
+		clearPreSign(ses)
+		ses.Status = status_restarting
+		ses.Respond(&MPCMessage{Command: command_restart_B})
 
 		ses.Interactive = true
 		ses.NextPrompt = LinPreSignA
 	} else {
-		ses.Inactive = true
+		ses.Respond(&MPCMessage{Command: command_inactive_B})
+		ses.Inactive = false
 	}
+}
+
+func clearPreSign(ses *Session) {
+	lin := ses.State.(*LinState)
+	// State cleanup for better readeablity
+	lin.Message = ""
+	lin.PartialNonceA = nil
+	lin.PartialNonceB = nil
+	lin.PubNonce = nil
+	lin.PubPartialNonceA = nil
+	lin.PubPartialNonceB = nil
+	lin.D = nil
+	lin.S = nil
 }
 
 func HandleLinMessageA(mpcm *MPCMessage, ses *Session) {
@@ -483,7 +499,6 @@ func HandleLinMessageA(mpcm *MPCMessage, ses *Session) {
 
 	case command_keygen_confirm_A:
 		if mpcm.Message == "ok" {
-			fmt.Println("keygen_confirm ok")
 			ses.Status = status_keygen_end
 			ses.Interactive = true
 			ses.NextPrompt = LinPreSignA
@@ -546,6 +561,13 @@ func HandleLinMessageB(mpcm *MPCMessage, ses *Session) {
 		st.D = D
 		ses.Interactive = false
 		LinSignB(ses)
+
+	case command_restart_B:
+		clearPreSign(ses)
+		ses.Status = status_restarting
+
+	case command_inactive_B:
+		ses.Inactive = true
 
 	default:
 		fmt.Println("shouldnt be here... Command:", mpcm.Command)
