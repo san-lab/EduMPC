@@ -12,6 +12,8 @@ import (
 	"github.com/manifoldco/promptui"
 )
 
+var NonInteractiveRoundsLeft = 0
+
 const command_keygen_join_A = "keygen_join_A"
 const command_keygen_confirm_A = "keygen_confirm_A"
 const command_presign_end_A = "presign_end_A"
@@ -342,10 +344,17 @@ func LinPreSignA(ses *Session) {
 	if lin.Attack {
 		suggestedPartialNonce.Exp(big.NewInt(2), lin.L, nil)
 		label := fmt.Sprintf("The partial nonce for iteration %s of the attack must be %s", lin.L.String(), suggestedPartialNonce.String())
-		PromptForNumber(label, suggestedPartialNonce.String())
+		if NonInteractiveRoundsLeft == 0 {
+			PromptForNumber(label, suggestedPartialNonce.String())
+		}
 		lin.PartialNonceA = new(big.Int).Set(suggestedPartialNonce)
 	} else {
-		lin.PartialNonceA = PromptForNumber("Partial nonce", suggestedPartialNonce.String())
+		if NonInteractiveRoundsLeft == 0 {
+			lin.PartialNonceA = PromptForNumber("Partial nonce", suggestedPartialNonce.String())
+		} else {
+			lin.PartialNonceA = suggestedPartialNonce
+		}
+
 	}
 
 	lin.PubPartialNonceA = new(ECPoint)
@@ -398,10 +407,12 @@ func LinSignA(ses *Session) {
 		lin.D = SignLindellPartyA(lin.ShareA, lin.PartialNonceA, lin.PubNonce.X, m_hash_bigint, lin.EncShareB, lin.Pub)
 	} else {
 		// User should not change these values...prompts are ignored by picking the values from the state
-		label := fmt.Sprintf("The attack value for iteration %s must be l = %s", lin.L.String(), lin.L.String())
-		PromptForNumber(label, lin.L.String())
-		label = fmt.Sprintf("The attack value for iteration %s must be y_b = %s", lin.L.String(), lin.Y_b.String())
-		PromptForNumber(label, lin.Y_b.String())
+		if NonInteractiveRoundsLeft == 0 {
+			label := fmt.Sprintf("The attack value for iteration %s must be l = %s", lin.L.String(), lin.L.String())
+			PromptForNumber(label, lin.L.String())
+			label = fmt.Sprintf("The attack value for iteration %s must be y_b = %s", lin.L.String(), lin.Y_b.String())
+			PromptForNumber(label, lin.Y_b.String())
+		}
 		lin.D = SignLindellAdversaryPartyA(lin.ShareA, lin.PartialNonceA, lin.PubNonce.X, m_hash_bigint, lin.EncShareB, lin.L, lin.Y_b, lin.Pub)
 	}
 
@@ -450,24 +461,38 @@ func FinishA(ses *Session) {
 }
 
 func RepeatA(ses *Session) {
-	//lin := ses.State.(*LinState)
+	if NonInteractiveRoundsLeft == 0 {
+		rounds := PromptForNumber("Start how many more signing rounds?", "1")
 
-	items := []string{"Yes", "No", up}
-	pr := promptui.Select{Label: "Start another signing round?",
-		Items: items,
-	}
-	_, res, _ := pr.Run()
-	if res == "Yes" {
-		// State cleanup for better readeablity
+		switch rounds.String() {
+		case "0":
+			ses.Respond(&MPCMessage{Command: command_inactive_B})
+			ses.Inactive = false
+
+		case "1":
+			// State cleanup for better readeablity
+			clearPreSign(ses)
+			ses.Status = status_restarting
+			ses.Respond(&MPCMessage{Command: command_restart_B})
+			ses.Interactive = true
+			ses.NextPrompt = LinPreSignA
+
+		default:
+			// Perform the rounds in a non-interactive way
+			NonInteractiveRoundsLeft = int(rounds.Int64())
+
+			clearPreSign(ses)
+			ses.Status = status_restarting
+			ses.Respond(&MPCMessage{Command: command_restart_B})
+			ses.Interactive = false
+			LinPreSignA(ses)
+		}
+	} else {
 		clearPreSign(ses)
 		ses.Status = status_restarting
 		ses.Respond(&MPCMessage{Command: command_restart_B})
-
-		ses.Interactive = true
-		ses.NextPrompt = LinPreSignA
-	} else {
-		ses.Respond(&MPCMessage{Command: command_inactive_B})
-		ses.Inactive = false
+		ses.Interactive = false
+		LinPreSignA(ses)
 	}
 }
 
@@ -514,8 +539,12 @@ func HandleLinMessageA(mpcm *MPCMessage, ses *Session) {
 		ses.Interactive = false
 		LinPreSignEndA(ses)
 
-		ses.Interactive = true
-		ses.NextPrompt = LinSignA
+		if NonInteractiveRoundsLeft == 0 {
+			ses.Interactive = true
+			ses.NextPrompt = LinSignA
+		} else {
+			LinSignA(ses)
+		}
 
 	case command_finish_A:
 		verifies := new(bool)
@@ -525,8 +554,15 @@ func HandleLinMessageA(mpcm *MPCMessage, ses *Session) {
 		ses.Interactive = false
 		FinishA(ses)
 
-		ses.Interactive = true
-		ses.NextPrompt = RepeatA
+		if NonInteractiveRoundsLeft > 0 {
+			NonInteractiveRoundsLeft--
+		}
+		if NonInteractiveRoundsLeft == 0 {
+			ses.Interactive = true
+			ses.NextPrompt = RepeatA
+		} else {
+			RepeatA(ses)
+		}
 
 	default:
 		fmt.Println("shouldnt be here... Command:", mpcm.Command)
