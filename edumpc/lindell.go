@@ -26,7 +26,7 @@ const command_restart_B = "restart_B"
 const command_inactive_B = "set_inactive_B"
 
 const status_awaiting = "Awaiting for other party to connect. Generated partial keys"
-const status_received_invite = "Received the invitation and the public information needed to join the session"
+const status_received_invite = "Received the invitation and the public paillier key, public ECDSA share and encrypted private share"
 const status_joined = "Joined the session, generated and sent partial keys"
 const status_keygen_end = "Key generation stage finished. Public ECDSA key reconstructed"
 const status_nonce_sent = "Partial nonce generated and sent"
@@ -338,7 +338,13 @@ func LinKeyGenEndB(ses *Session) {
 func LinPreSignA(ses *Session) {
 	lin := ses.State.(*LinState)
 
-	lin.Message = "test" // TODO Prompt for message?
+	suggestedMessage := "test"
+	if NonInteractiveRoundsLeft == 0 {
+		pr := promptui.Prompt{Label: "Message to sign", Default: suggestedMessage}
+		suggestedMessage, _ = pr.Run()
+	}
+	lin.Message = suggestedMessage
+
 	suggestedPartialNonce, _ := rand.Int(rand.Reader, big.NewInt(1000))
 
 	if lin.Attack {
@@ -468,6 +474,7 @@ func RepeatA(ses *Session) {
 		case "0":
 			ses.Respond(&MPCMessage{Command: command_inactive_B})
 			ses.Inactive = true
+			ses.Interactive = false
 
 		case "1":
 			// State cleanup for better readeablity

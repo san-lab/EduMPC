@@ -70,21 +70,28 @@ func ConfigUI(mpcn *MPCNode) {
 }
 
 func SessionSelectUI(mpcn *MPCNode) {
+	uncoloredItems := map[string]string{} // Need to keep the inactive sessions uncolored id
 	items := []string{}
 	for key, ses := range mpcn.sessions {
 		if !ses.Inactive {
 			items = append(items, key)
+			uncoloredItems[key] = key
 		} else {
 			greyKey := promptui.Styler(promptui.FGFaint)(key)
 			items = append(items, greyKey)
+			uncoloredItems[greyKey] = key
 		}
 	}
 	items = append(items, news)
+	uncoloredItems[news] = news
 	items = append(items, up)
+	uncoloredItems[up] = up
+
 	pr := promptui.Select{Label: "Current sessions",
 		Items: items,
 	}
 	_, sid, _ := pr.Run()
+	sid = uncoloredItems[sid]
 	if sid == news {
 		StartNewSessionUI(mpcn)
 	}
