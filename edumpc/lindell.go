@@ -466,7 +466,6 @@ func RepeatA(ses *Session) {
 
 		switch rounds.String() {
 		case "0":
-			fmt.Println("0")
 			ses.Respond(&MPCMessage{Command: command_inactive_B})
 			ses.Inactive = true
 
