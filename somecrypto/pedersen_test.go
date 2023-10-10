@@ -1,4 +1,4 @@
-package edumpc
+package somecrypto
 
 import (
 	"math/big"

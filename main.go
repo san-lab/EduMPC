@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/san-lab/EduMPC/chat"
 	"github.com/san-lab/EduMPC/edumpc"
 	"github.com/san-lab/EduMPC/guessgame"
+	"github.com/san-lab/EduMPC/ot"
 	"github.com/san-lab/EduMPC/plumbing"
 	"github.com/san-lab/EduMPC/sepior"
 )
@@ -25,9 +27,14 @@ func main() {
 	}
 	time.Sleep(time.Second)
 	fmt.Println("Peer count:", mpcn.PeerCount())
-	sepior.Init(mpcn)
 
-	guessgame.A()
+	//let packages do the self-registration
+	sepior.Init(mpcn)
+	guessgame.Init(mpcn)
+	ot.Init(mpcn)
+	chat.Init(mpcn)
+
+	//Init UI
 	edumpc.TopUI(mpcn)
 
 }

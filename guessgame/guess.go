@@ -23,7 +23,9 @@ func init() {
 	edumpc.Protocols[Guess] = &edumpc.SessionHandler{GameInvite, GameAccept}
 	//fmt.Println(edumpc.Protocols)
 }
-func A() {}
+
+// Allows main() to regiter the package
+func Init(*edumpc.MPCNode) {}
 
 func GameInvite(mpcn *edumpc.MPCNode) {
 	fmt.Println("Starting a new game")

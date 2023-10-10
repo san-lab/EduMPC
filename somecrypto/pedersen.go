@@ -1,4 +1,4 @@
-package edumpc
+package somecrypto
 
 import (
 	"crypto/elliptic"
@@ -8,6 +8,11 @@ import (
 	"crypto/rand"
 	//	"fmt"
 )
+
+type ECPoint struct {
+	X *big.Int `json:"x"`
+	Y *big.Int `json:"y"`
+}
 
 // Public parameters
 var secp256r1 = elliptic.P256()

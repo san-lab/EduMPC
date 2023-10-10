@@ -1,4 +1,4 @@
-package edumpc
+package somecrypto
 
 import (
 	"crypto/rand"
@@ -182,20 +182,20 @@ func TestRangeProof(t *testing.T) {
 	ver1 := s1.Cmp(q3) != 1
 
 	c2_0 := new(big.Int).Exp(G, s1, N2)
-	c2_1 :=	new(big.Int).Exp(s, N, N2)
+	c2_1 := new(big.Int).Exp(s, N, N2)
 	c2_2 := new(big.Int).Exp(c, new(big.Int).Neg(e), N2)
 	c2 := new(big.Int).Mul(c2_0, c2_1)
 	c2.Mul(c2, c2_2)
 	c2.Mod(c2, N2)
 	ver2 := u.Cmp(c2) == 0
 
-        c3_0 := new(big.Int).Exp(h1, s1, n_)
-        c3_1 := new(big.Int).Exp(h2, s2, n_)
-        c3_2 := new(big.Int).Exp(z, new(big.Int).Neg(e), n_)
-        c3 := new(big.Int).Mul(c3_0, c3_1)
-        c3.Mul(c3, c3_2)
-        c3.Mod(c3, n_)
-        ver3 := w.Cmp(c3) == 0
+	c3_0 := new(big.Int).Exp(h1, s1, n_)
+	c3_1 := new(big.Int).Exp(h2, s2, n_)
+	c3_2 := new(big.Int).Exp(z, new(big.Int).Neg(e), n_)
+	c3 := new(big.Int).Mul(c3_0, c3_1)
+	c3.Mul(c3, c3_2)
+	c3.Mod(c3, n_)
+	ver3 := w.Cmp(c3) == 0
 
 	fmt.Println("Verification: ", ver1, ver2, ver3)
 }

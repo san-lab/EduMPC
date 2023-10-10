@@ -1,4 +1,4 @@
-package edumpc
+package lindellmta
 
 import (
 	"crypto/ecdsa"
@@ -10,6 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/manifoldco/promptui"
+	"github.com/san-lab/EduMPC/edumpc"
+	"github.com/san-lab/EduMPC/somecrypto"
 )
 
 var NonInteractiveRoundsLeft = 0
@@ -38,37 +40,37 @@ const status_finished = "Finished protocol iteration"
 const status_restarting = "Starting a new signature iteration"
 
 type LinKeyGenMessage struct {
-	PubShare *ECPoint
+	PubShare *somecrypto.ECPoint
 	EncShare *big.Int
-	Pub      *PaillierPub
+	Pub      *somecrypto.PaillierPub
 }
 
 type LinKeyGenEndMessage struct {
-	PubShare *ECPoint
+	PubShare *somecrypto.ECPoint
 	PubEcdsa *ecdsa.PublicKey
 }
 
 type LinPreSignMessage struct {
-	PubPartialNonce *ECPoint
+	PubPartialNonce *somecrypto.ECPoint
 	Message         string
 }
 
 type LinState struct {
 	Role             string
-	Priv             *PaillierPriv
-	Pub              *PaillierPub
+	Priv             *somecrypto.PaillierPriv
+	Pub              *somecrypto.PaillierPub
 	PubEcdsa         *ecdsa.PublicKey
 	ShareA           *big.Int
 	ShareB           *big.Int
 	EncShareB        *big.Int
-	PubShareA        *ECPoint
-	PubShareB        *ECPoint
+	PubShareA        *somecrypto.ECPoint
+	PubShareB        *somecrypto.ECPoint
 	Message          string
 	PartialNonceA    *big.Int
 	PartialNonceB    *big.Int
-	PubNonce         *ECPoint
-	PubPartialNonceA *ECPoint
-	PubPartialNonceB *ECPoint
+	PubNonce         *somecrypto.ECPoint
+	PubPartialNonceA *somecrypto.ECPoint
+	PubPartialNonceB *somecrypto.ECPoint
 	D                *big.Int
 	S                *big.Int
 	// Attack mode
@@ -135,7 +137,7 @@ func formatBits(reversedIterations []bool) string {
 	return result
 }
 
-func PrintLinState(ses *Session) {
+func PrintLinState(ses *edumpc.Session) {
 	// Dont print the whole numbers, just the beginning
 	length := 40
 
@@ -203,30 +205,30 @@ func PrintLinState(ses *Session) {
 	}
 }
 
-func LinDetails(ses *Session) {
+func LinDetails(ses *edumpc.Session) {
 	PrintLinState(ses)
 	fmt.Println("----------")
 	fmt.Println(promptui.Styler(promptui.FGBold)("Status:"), ses.Status)
 	fmt.Println("----------")
 }
 
-func InitNewLin(mpcn *MPCNode) {
+func InitNewLin(mpcn *edumpc.MPCNode) {
 	var err error
 	sid := "Lin-" + uuid.NewString()
 	ses := NewSenderLinSession(mpcn, sid)
 	st := (ses.State).(*LinState)
 
-	st.ShareB = PromptForNumber("ECDSA private key share", "33")
+	st.ShareB = edumpc.PromptForNumber("ECDSA private key share", "33")
 
-	b := PromptForNumber("Bits for paillier key", "1024")
+	b := edumpc.PromptForNumber("Bits for paillier key", "1024")
 	bits := int(b.Int64())
-	st.Priv, st.Pub = GenerateNiceKeyPair(bits)
+	st.Priv, st.Pub = somecrypto.GenerateNiceKeyPair(bits)
 
 	st.EncShareB = st.Pub.Encrypt(st.ShareB)
 	Xs_x, Xs_y := CurveLindell.ScalarBaseMult(st.ShareB.Bytes())
-	st.PubShareB = &ECPoint{Xs_x, Xs_y}
+	st.PubShareB = &somecrypto.ECPoint{Xs_x, Xs_y}
 
-	mpcm := new(MPCMessage)
+	mpcm := new(edumpc.MPCMessage)
 	mpcm.Command = command_keygen_join_A
 	msg := &LinKeyGenMessage{}
 	msg.Pub = st.Pub
@@ -244,8 +246,10 @@ func InitNewLin(mpcn *MPCNode) {
 	ses.Interactive = false
 }
 
-func NewSenderLinSession(mpcn *MPCNode, sessionID string) *Session {
-	ses := new(Session)
+const Lin = edumpc.Protocol("Lindell")
+
+func NewSenderLinSession(mpcn *edumpc.MPCNode, sessionID string) *edumpc.Session {
+	ses := new(edumpc.Session)
 	ses.ID = sessionID
 	ses.Protocol = Lin
 	ses.HandleMessage = HandleLinMessageB
@@ -256,12 +260,13 @@ func NewSenderLinSession(mpcn *MPCNode, sessionID string) *Session {
 	ses.State = st
 	ses.Status = status_awaiting
 	ses.ID = sessionID
-	mpcn.sessions[ses.ID] = ses
+	//mpcn.sessions[ses.ID] = ses
+	mpcn.NewLocalSession(sessionID, ses)
 	ses.Node = mpcn
 	return ses
 }
 
-func NewRecLinSession(mpcn *MPCNode, sessionID string) *Session {
+func NewRecLinSession(mpcn *edumpc.MPCNode, sessionID string) *edumpc.Session {
 	ses := NewSenderLinSession(mpcn, sessionID)
 	ses.HandleMessage = HandleLinMessageA
 	ses.Status = status_received_invite
@@ -270,7 +275,7 @@ func NewRecLinSession(mpcn *MPCNode, sessionID string) *Session {
 	return ses
 }
 
-func LinPromptJoinA(ses *Session) {
+func LinPromptJoinA(ses *edumpc.Session) {
 	lin := ses.State.(*LinState)
 	items := []string{"Yes", "No", up}
 	pr := promptui.Select{Label: "Accept Lindell invitation",
@@ -281,7 +286,8 @@ func LinPromptJoinA(ses *Session) {
 	case up:
 		return
 	case "No":
-		delete(ses.Node.sessions, ses.ID)
+		//delete(ses.Node.sessions, ses.ID)
+		ses.Inactive = true
 	case "Yes":
 		items := []string{"Yes", "No", up}
 		pr := promptui.Select{Label: "Try to perform an attack?",
@@ -296,16 +302,16 @@ func LinPromptJoinA(ses *Session) {
 			lin.Attack = false
 		}
 
-		lin.ShareA = PromptForNumber("ECDSA private key share", "97")
+		lin.ShareA = edumpc.PromptForNumber("ECDSA private key share", "97")
 
 		lin.PubEcdsa = new(ecdsa.PublicKey)
 		lin.PubEcdsa.Curve = CurveLindell
 
 		Xs_x, Xs_y := lin.PubEcdsa.Curve.ScalarBaseMult(lin.ShareA.Bytes())
-		lin.PubShareA = &ECPoint{Xs_x, Xs_y}
+		lin.PubShareA = &somecrypto.ECPoint{Xs_x, Xs_y}
 		lin.PubEcdsa.X, lin.PubEcdsa.Y = lin.PubEcdsa.Curve.Add(lin.PubShareA.X, lin.PubShareA.Y, lin.PubShareB.X, lin.PubShareB.Y)
 
-		mpcm := new(MPCMessage)
+		mpcm := new(edumpc.MPCMessage)
 		msg := &LinKeyGenEndMessage{lin.PubShareA, lin.PubEcdsa}
 		tmp, _ := json.Marshal(msg)
 		mpcm.Message = string(tmp)
@@ -317,11 +323,11 @@ func LinPromptJoinA(ses *Session) {
 	}
 }
 
-func LinKeyGenEndB(ses *Session) {
+func LinKeyGenEndB(ses *edumpc.Session) {
 	lin := ses.State.(*LinState)
 	lin.PubEcdsa.Curve = CurveLindell
 	pubX, pubY := lin.PubEcdsa.Curve.Add(lin.PubShareA.X, lin.PubShareA.Y, lin.PubShareB.X, lin.PubShareB.Y)
-	mpcm := new(MPCMessage)
+	mpcm := new(edumpc.MPCMessage)
 	if pubX.Cmp(lin.PubEcdsa.X) != 0 || pubY.Cmp(lin.PubEcdsa.Y) != 0 {
 		fmt.Println("wrong ecdsa public key")
 		mpcm.Message = "ko"
@@ -335,7 +341,7 @@ func LinKeyGenEndB(ses *Session) {
 	ses.Status = status_keygen_end
 }
 
-func LinPreSignA(ses *Session) {
+func LinPreSignA(ses *edumpc.Session) {
 	lin := ses.State.(*LinState)
 
 	suggestedMessage := "test"
@@ -351,24 +357,24 @@ func LinPreSignA(ses *Session) {
 		suggestedPartialNonce.Exp(big.NewInt(2), lin.L, nil)
 		label := fmt.Sprintf("The partial nonce for iteration %s of the attack must be %s", lin.L.String(), suggestedPartialNonce.String())
 		if NonInteractiveRoundsLeft == 0 {
-			PromptForNumber(label, suggestedPartialNonce.String())
+			edumpc.PromptForNumber(label, suggestedPartialNonce.String())
 		}
 		lin.PartialNonceA = new(big.Int).Set(suggestedPartialNonce)
 	} else {
 		if NonInteractiveRoundsLeft == 0 {
-			lin.PartialNonceA = PromptForNumber("Partial nonce", suggestedPartialNonce.String())
+			lin.PartialNonceA = edumpc.PromptForNumber("Partial nonce", suggestedPartialNonce.String())
 		} else {
 			lin.PartialNonceA = suggestedPartialNonce
 		}
 
 	}
 
-	lin.PubPartialNonceA = new(ECPoint)
+	lin.PubPartialNonceA = new(somecrypto.ECPoint)
 	lin.PubPartialNonceA.X, lin.PubPartialNonceA.Y = lin.PubEcdsa.Curve.ScalarBaseMult(lin.PartialNonceA.Bytes())
 
 	msg := &LinPreSignMessage{lin.PubPartialNonceA, lin.Message}
 
-	mpcm := new(MPCMessage)
+	mpcm := new(edumpc.MPCMessage)
 	tmp, _ := json.Marshal(msg)
 	mpcm.Message = string(tmp)
 	mpcm.Command = command_presign_B
@@ -377,17 +383,17 @@ func LinPreSignA(ses *Session) {
 	ses.Status = status_nonce_sent
 }
 
-func LinPreSignB(ses *Session) {
+func LinPreSignB(ses *edumpc.Session) {
 	lin := ses.State.(*LinState)
 	lin.PartialNonceB, _ = rand.Int(rand.Reader, big.NewInt(1000))
-	lin.PubPartialNonceB = new(ECPoint)
+	lin.PubPartialNonceB = new(somecrypto.ECPoint)
 	lin.PubPartialNonceB.X, lin.PubPartialNonceB.Y = lin.PubEcdsa.Curve.ScalarBaseMult(lin.PartialNonceB.Bytes())
-	lin.PubNonce = new(ECPoint)
+	lin.PubNonce = new(somecrypto.ECPoint)
 	lin.PubNonce.X, lin.PubNonce.Y = lin.PubEcdsa.Curve.ScalarMult(lin.PubPartialNonceA.X, lin.PubPartialNonceA.Y, lin.PartialNonceB.Bytes())
 
 	msg := &LinPreSignMessage{lin.PubPartialNonceB, lin.Message} // No need to send Message
 
-	mpcm := new(MPCMessage)
+	mpcm := new(edumpc.MPCMessage)
 	tmp, _ := json.Marshal(msg)
 	mpcm.Message = string(tmp)
 	mpcm.Command = command_presign_end_A
@@ -396,14 +402,14 @@ func LinPreSignB(ses *Session) {
 	ses.Status = status_presign_end
 }
 
-func LinPreSignEndA(ses *Session) {
+func LinPreSignEndA(ses *edumpc.Session) {
 	lin := ses.State.(*LinState)
-	lin.PubNonce = new(ECPoint)
+	lin.PubNonce = new(somecrypto.ECPoint)
 	lin.PubNonce.X, lin.PubNonce.Y = lin.PubEcdsa.Curve.ScalarMult(lin.PubPartialNonceB.X, lin.PubPartialNonceB.Y, lin.PartialNonceA.Bytes())
 	ses.Status = status_presign_end
 }
 
-func LinSignA(ses *Session) {
+func LinSignA(ses *edumpc.Session) {
 	lin := ses.State.(*LinState)
 
 	m_hash := sha256.Sum256([]byte(lin.Message))
@@ -415,14 +421,14 @@ func LinSignA(ses *Session) {
 		// User should not change these values...prompts are ignored by picking the values from the state
 		if NonInteractiveRoundsLeft == 0 {
 			label := fmt.Sprintf("The attack value for iteration %s must be l = %s", lin.L.String(), lin.L.String())
-			PromptForNumber(label, lin.L.String())
+			edumpc.PromptForNumber(label, lin.L.String())
 			label = fmt.Sprintf("The attack value for iteration %s must be y_b = %s", lin.L.String(), lin.Y_b.String())
-			PromptForNumber(label, lin.Y_b.String())
+			edumpc.PromptForNumber(label, lin.Y_b.String())
 		}
 		lin.D = SignLindellAdversaryPartyA(lin.ShareA, lin.PartialNonceA, lin.PubNonce.X, m_hash_bigint, lin.EncShareB, lin.L, lin.Y_b, lin.Pub)
 	}
 
-	mpcm := new(MPCMessage)
+	mpcm := new(edumpc.MPCMessage)
 	tmp, _ := json.Marshal(lin.D)
 	mpcm.Message = string(tmp)
 	mpcm.Command = command_sign_end_B
@@ -431,7 +437,7 @@ func LinSignA(ses *Session) {
 	ses.Status = status_partialsig_sent
 }
 
-func LinSignB(ses *Session) {
+func LinSignB(ses *edumpc.Session) {
 	lin := ses.State.(*LinState)
 	m_hash := sha256.Sum256([]byte(lin.Message))
 
@@ -440,7 +446,7 @@ func LinSignB(ses *Session) {
 	verifies := ecdsa.Verify(lin.PubEcdsa, m_hash[:], lin.PubNonce.X, lin.S)
 	lin.Bits = append(lin.Bits, verifies)
 
-	mpcm := new(MPCMessage)
+	mpcm := new(edumpc.MPCMessage)
 	tmp, _ := json.Marshal(verifies)
 	mpcm.Message = string(tmp)
 	mpcm.Command = command_finish_A
@@ -454,7 +460,7 @@ func LinSignB(ses *Session) {
 
 }
 
-func FinishA(ses *Session) {
+func FinishA(ses *edumpc.Session) {
 	lin := ses.State.(*LinState)
 	ses.Status = status_finished
 
@@ -466,13 +472,13 @@ func FinishA(ses *Session) {
 	}
 }
 
-func RepeatA(ses *Session) {
+func RepeatA(ses *edumpc.Session) {
 	if NonInteractiveRoundsLeft == 0 {
-		rounds := PromptForNumber("Start how many more signing rounds?", "1")
+		rounds := edumpc.PromptForNumber("Start how many more signing rounds?", "1")
 
 		switch rounds.String() {
 		case "0":
-			ses.Respond(&MPCMessage{Command: command_inactive_B})
+			ses.Respond(&edumpc.MPCMessage{Command: command_inactive_B})
 			ses.Inactive = true
 			ses.Interactive = false
 
@@ -480,7 +486,7 @@ func RepeatA(ses *Session) {
 			// State cleanup for better readeablity
 			clearPreSign(ses)
 			ses.Status = status_restarting
-			ses.Respond(&MPCMessage{Command: command_restart_B})
+			ses.Respond(&edumpc.MPCMessage{Command: command_restart_B})
 			ses.Interactive = true
 			ses.NextPrompt = LinPreSignA
 
@@ -490,20 +496,20 @@ func RepeatA(ses *Session) {
 
 			clearPreSign(ses)
 			ses.Status = status_restarting
-			ses.Respond(&MPCMessage{Command: command_restart_B})
+			ses.Respond(&edumpc.MPCMessage{Command: command_restart_B})
 			ses.Interactive = false
 			LinPreSignA(ses)
 		}
 	} else {
 		clearPreSign(ses)
 		ses.Status = status_restarting
-		ses.Respond(&MPCMessage{Command: command_restart_B})
+		ses.Respond(&edumpc.MPCMessage{Command: command_restart_B})
 		ses.Interactive = false
 		LinPreSignA(ses)
 	}
 }
 
-func clearPreSign(ses *Session) {
+func clearPreSign(ses *edumpc.Session) {
 	lin := ses.State.(*LinState)
 	// State cleanup for better readeablity
 	lin.Message = ""
@@ -516,7 +522,7 @@ func clearPreSign(ses *Session) {
 	lin.S = nil
 }
 
-func HandleLinMessageA(mpcm *MPCMessage, ses *Session) {
+func HandleLinMessageA(mpcm *edumpc.MPCMessage, ses *edumpc.Session) {
 	switch mpcm.Command {
 
 	case command_keygen_join_A:
@@ -577,7 +583,7 @@ func HandleLinMessageA(mpcm *MPCMessage, ses *Session) {
 	}
 }
 
-func HandleLinMessageB(mpcm *MPCMessage, ses *Session) {
+func HandleLinMessageB(mpcm *edumpc.MPCMessage, ses *edumpc.Session) {
 	switch mpcm.Command {
 
 	case command_keygen_end_B:

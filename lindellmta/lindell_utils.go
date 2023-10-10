@@ -1,17 +1,19 @@
-package edumpc
+package lindellmta
 
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/sha256"
 	"math/big"
+
+	"github.com/san-lab/EduMPC/somecrypto"
 )
 
 var CurveLindell = elliptic.P256()
 
-func KeyGenLindell(x_a, x_b *big.Int, paillier_bits int) (*PaillierPriv, *PaillierPub, *big.Int, *ecdsa.PublicKey) {
+func KeyGenLindell(x_a, x_b *big.Int, paillier_bits int) (*somecrypto.PaillierPriv, *somecrypto.PaillierPub, *big.Int, *ecdsa.PublicKey) {
 	// Paillier key pair, belongs to B
-	priv, pub := GenerateNiceKeyPair(paillier_bits)
+	priv, pub := somecrypto.GenerateNiceKeyPair(paillier_bits)
 
 	// Encrypt x_b with paillier, send to A
 	x_b_enc := pub.Encrypt(x_b)
@@ -25,7 +27,7 @@ func KeyGenLindell(x_a, x_b *big.Int, paillier_bits int) (*PaillierPriv, *Pailli
 	return priv, pub, x_b_enc, X
 }
 
-func SignLindell(m string, pub *PaillierPub, priv *PaillierPriv, x_a, x_b, x_b_enc, k_a, k_b *big.Int, attack bool, l, y_b *big.Int) (*big.Int, *big.Int) {
+func SignLindell(m string, pub *somecrypto.PaillierPub, priv *somecrypto.PaillierPriv, x_a, x_b, x_b_enc, k_a, k_b *big.Int, attack bool, l, y_b *big.Int) (*big.Int, *big.Int) {
 	m_hash := sha256.Sum256([]byte(m))
 	m_hash_bigint := hashToInt(m_hash[:], CurveLindell)
 
@@ -47,7 +49,7 @@ func SignLindell(m string, pub *PaillierPub, priv *PaillierPriv, x_a, x_b, x_b_e
 	return r, s
 }
 
-func SignLindellPartyA(x_a, k_a, r, m_hash_bigint, x_b_enc *big.Int, pub *PaillierPub) *big.Int {
+func SignLindellPartyA(x_a, k_a, r, m_hash_bigint, x_b_enc *big.Int, pub *somecrypto.PaillierPub) *big.Int {
 	k_a_inv := new(big.Int).ModInverse(k_a, CurveLindell.Params().N)
 
 	// Enc( k_a^-1 * (hash + r * x_a) )
@@ -70,7 +72,7 @@ func SignLindellPartyA(x_a, k_a, r, m_hash_bigint, x_b_enc *big.Int, pub *Pailli
 	return res1
 }
 
-func SignLindellPartyB(k_b, D *big.Int, priv *PaillierPriv) *big.Int {
+func SignLindellPartyB(k_b, D *big.Int, priv *somecrypto.PaillierPriv) *big.Int {
 	// k_b^-1 * Dec( D )
 	k_b_inv := new(big.Int).ModInverse(k_b, CurveLindell.Params().N)
 	res1_dec := priv.Decrypt(D)
@@ -79,7 +81,7 @@ func SignLindellPartyB(k_b, D *big.Int, priv *PaillierPriv) *big.Int {
 	return s
 }
 
-func SignLindellAdversaryPartyA(x_a, k_a, r, m_hash_bigint, x_b_enc, l, y_b *big.Int, pub *PaillierPub) *big.Int {
+func SignLindellAdversaryPartyA(x_a, k_a, r, m_hash_bigint, x_b_enc, l, y_b *big.Int, pub *somecrypto.PaillierPub) *big.Int {
 	// Attack 3.5 Step 1
 	k_a_inv := new(big.Int).ModInverse(k_a, CurveLindell.Params().N)
 	k_a_inv_N := new(big.Int).ModInverse(k_a, pub.N)

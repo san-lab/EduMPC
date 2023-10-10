@@ -79,20 +79,22 @@ func NewDumbSession(mpcn *MPCNode, sessionID string) *Session {
 
 type Protocol string
 
-const chat = Protocol("chat")
+// const chat = Protocol("chat")
 const dumb = Protocol("Unknown protocol")
-const ot1 = Protocol("ot1")
+
+// const ot1 = Protocol("ot1")
 const PM2A = Protocol("Paillier M2A") //Paillier Multi-to-Additive
 const PM2Att = Protocol("Fireblocks attack")
-const Lin = Protocol("Lindell")
+
+//const Lin = Protocol("Lindell")
 
 func init() {
-	Protocols[chat] = &SessionHandler{InitNewChat, NewChatSession}
+	//Protocols[chat] = &SessionHandler{InitNewChat, NewChatSession}
 	Protocols[dumb] = &SessionHandler{func(n *MPCNode) { fmt.Println("Dumb") }, NewDumbSession}
-	Protocols[ot1] = &SessionHandler{InitNewOt1, NewOt1Session}
-	Protocols[PM2A] = &SessionHandler{InitNewPM2A, NewRecPM2ASession}
+	//Protocols[ot1] = &SessionHandler{InitNewOt1, NewOt1Session}
+	//Protocols[PM2A] = &SessionHandler{InitNewPM2A, NewRecPM2ASession}
 	Protocols[PM2Att] = &SessionHandler{InitNewPM2Att, NewRecPM2AttSession}
-	Protocols[Lin] = &SessionHandler{InitNewLin, NewRecLinSession}
+	//Protocols[Lin] = &SessionHandler{InitNewLin, NewRecLinSession}
 }
 
 func ShowHistory(ses *Session) {

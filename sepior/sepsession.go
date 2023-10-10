@@ -40,7 +40,7 @@ func HandleSepMessage(mpcm *edumpc.MPCMessage, ses *edumpc.Session) {
 		//A risk of an overwrite to be assessed
 		sesState := ses.State.(*KeyGenState)
 		sepmsg := new(KeyGenMsg)
-		err := json.Unmarshal(mpcm.Message, sepmsg)
+		err := json.Unmarshal([]byte(mpcm.Message), sepmsg)
 		if err != nil {
 			fmt.Println(err)
 			return

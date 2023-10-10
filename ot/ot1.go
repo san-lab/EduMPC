@@ -1,4 +1,4 @@
-package edumpc
+package ot
 
 import (
 	"encoding/json"
@@ -6,7 +6,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/manifoldco/promptui"
+	"github.com/san-lab/EduMPC/edumpc"
 )
+
+// Allows main() to regiter the package
+func Init(*edumpc.MPCNode) {}
 
 type OT1State struct {
 	Role        string
@@ -36,14 +40,14 @@ type EncryptedValues struct {
 	Nonce1 []byte `"json: nonce1"`
 }
 
-func InitNewOt1(mpcn *MPCNode) {
+func InitNewOt1(mpcn *edumpc.MPCNode) {
 	id := "OT1-" + uuid.NewString() //TODO Randomize
 
 	ses := NewOt1Session(mpcn, id)
 	ots := (ses.State).(*OT1State)
 	ots.Role = "recipient"
 
-	mpcm := new(MPCMessage)
+	mpcm := new(edumpc.MPCMessage)
 	mpcm.Protocol = ot1
 	mpcm.Command = "join"
 	ses.Respond(mpcm)
@@ -51,8 +55,14 @@ func InitNewOt1(mpcn *MPCNode) {
 	return
 }
 
-func NewOt1Session(mpcn *MPCNode, sessionID string) *Session {
-	ses := new(Session)
+const ot1 = edumpc.Protocol("ot1")
+
+func init() {
+	edumpc.Protocols[ot1] = &edumpc.SessionHandler{InitNewOt1, NewOt1Session}
+}
+
+func NewOt1Session(mpcn *edumpc.MPCNode, sessionID string) *edumpc.Session {
+	ses := new(edumpc.Session)
 	ses.ID = sessionID
 	ses.Protocol = ot1
 	ses.HandleMessage = HandleOt1Message
@@ -64,12 +74,12 @@ func NewOt1Session(mpcn *MPCNode, sessionID string) *Session {
 	ses.State = ots
 	ses.Status = "awaiting peer"
 	ses.ID = sessionID
-	mpcn.sessions[ses.ID] = ses
+	mpcn.NewLocalSession(ses.ID, ses)
 	ses.Node = mpcn
 	return ses
 }
 
-func PrintState(ses *Session) {
+func PrintState(ses *edumpc.Session) {
 	ots, _ := ses.State.(*OT1State)
 	fmt.Println("Role:", ots.Role)
 	fmt.Println("Status:", ses.Status)
@@ -82,11 +92,13 @@ func PrintState(ses *Session) {
 	fmt.Println("Plaintext:", string(ots.Plaintext))
 }
 
-func Ot1Prompt(ses *Session) {
+func Ot1Prompt(ses *edumpc.Session) {
 
 }
 
-func Ot1PromptJoin(ses *Session) {
+const up = "up"
+
+func Ot1PromptJoin(ses *edumpc.Session) {
 	ots := ses.State.(*OT1State)
 	items := []string{"Yes", "No", up}
 	pr := promptui.Select{Label: "Accept OT1 invitation",
@@ -97,7 +109,8 @@ func Ot1PromptJoin(ses *Session) {
 	case up:
 		return
 	case "No":
-		delete(ses.Node.sessions, ses.ID)
+		ses.Inactive = true
+		//delete(ses.Node.sessions, ses.ID)
 	case "Yes":
 		prP := promptui.Prompt{Label: "Message 1"}
 		ots.Msg1, _ = prP.Run()
@@ -107,7 +120,7 @@ func Ot1PromptJoin(ses *Session) {
 		ots.A, ots.Priv_a, _ = senderInit(myCurve)
 		ABytes, _ := json.Marshal(ots.A)
 
-		mpcm := new(MPCMessage)
+		mpcm := new(edumpc.MPCMessage)
 		mpcm.Message = string(ABytes)
 		mpcm.Command = "choose"
 		ses.Respond(mpcm)
@@ -116,7 +129,7 @@ func Ot1PromptJoin(ses *Session) {
 	}
 }
 
-func Ot1PromptChoice(ses *Session) {
+func Ot1PromptChoice(ses *edumpc.Session) {
 	ots := ses.State.(*OT1State)
 	items := []string{"msg1", "msg2", up}
 	pr := promptui.Select{Label: "Select message",
@@ -136,7 +149,7 @@ func Ot1PromptChoice(ses *Session) {
 	}
 	BBytes, _ := json.Marshal(ots.B)
 
-	mpcm := new(MPCMessage)
+	mpcm := new(edumpc.MPCMessage)
 	mpcm.Message = string(BBytes)
 	mpcm.Command = "transfer"
 	ses.Respond(mpcm)
@@ -144,13 +157,13 @@ func Ot1PromptChoice(ses *Session) {
 	ses.Status = "msg chosen"
 }
 
-func Ot1PromptTransfer(ses *Session) {
+func Ot1PromptTransfer(ses *edumpc.Session) {
 	ots := ses.State.(*OT1State)
 	e0, nonce0, e1, nonce1, _ := senderEncrypts(myCurve, ots.A, ots.B, ots.Priv_a, []byte(ots.Msg1), []byte(ots.Msg2))
 	ots.Ciphertexts = &EncryptedValues{E0: e0, Nonce0: nonce0, E1: e1, Nonce1: nonce1}
 	EBytes, _ := json.Marshal(ots.Ciphertexts)
 
-	mpcm := new(MPCMessage)
+	mpcm := new(edumpc.MPCMessage)
 	mpcm.Message = string(EBytes)
 	mpcm.Command = "decrypt"
 	ses.Respond(mpcm)
@@ -160,7 +173,7 @@ func Ot1PromptTransfer(ses *Session) {
 
 }
 
-func Ot1PromptDecrypt(ses *Session) {
+func Ot1PromptDecrypt(ses *edumpc.Session) {
 	ots := ses.State.(*OT1State)
 	m, _ := receiverDecrypts(myCurve, ots.A, ots.Priv_b, ots.Ciphertexts.E0, ots.Ciphertexts.Nonce0, ots.Ciphertexts.E1, ots.Ciphertexts.Nonce1)
 	ots.Plaintext = m
@@ -169,7 +182,7 @@ func Ot1PromptDecrypt(ses *Session) {
 	// delete(mpcn.sessions, ses.ID)
 }
 
-func HandleOt1Message(mpcm *MPCMessage, ses *Session) {
+func HandleOt1Message(mpcm *edumpc.MPCMessage, ses *edumpc.Session) {
 	ots := ses.State.(*OT1State)
 	switch mpcm.Command {
 	case "join":

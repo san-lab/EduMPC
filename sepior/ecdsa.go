@@ -12,7 +12,7 @@ import (
 	"gitlab.com/sepior/go-tsm-sdk/sdk/tsm"
 )
 
-func Ge_nerateKey() {
+func GenerateKey() {
 
 	// Configure your TSM here
 

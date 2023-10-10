@@ -1,4 +1,4 @@
-package edumpc
+package ot
 
 import (
 	"crypto/ecdsa"

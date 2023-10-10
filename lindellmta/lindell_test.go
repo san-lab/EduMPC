@@ -1,4 +1,4 @@
-package edumpc
+package lindellmta
 
 import (
 	"crypto/ecdsa"
@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"math/big"
 	"testing"
+
+	"github.com/san-lab/EduMPC/somecrypto"
 )
 
 func TestHonestExecution(t *testing.T) {
@@ -136,7 +138,7 @@ func TestRegularECDSA(t *testing.T) {
 }
 
 func TestHomomorphic(t *testing.T) {
-	priv, pub := GenerateNiceKeyPair(32)
+	priv, pub := somecrypto.GenerateNiceKeyPair(32)
 	fmt.Println("priv:", priv)
 	fmt.Println("pub:", pub)
 

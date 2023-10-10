@@ -1,4 +1,4 @@
-package edumpc
+package lindellmta
 
 import (
 	"encoding/json"
@@ -7,7 +7,15 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/manifoldco/promptui"
+	"github.com/san-lab/EduMPC/edumpc"
+	"github.com/san-lab/EduMPC/somecrypto"
 )
+
+func init() {}
+
+func Init(*edumpc.MPCNode) {
+	edumpc.Protocols[PM2A] = &edumpc.SessionHandler{InitNewPM2A, NewRecPM2ASession}
+}
 
 type PM2AMessage struct {
 	N *big.Int
@@ -16,8 +24,8 @@ type PM2AMessage struct {
 
 type PM2AState struct {
 	Role     string
-	Priv     *PaillierPriv
-	Pub      *PaillierPub
+	Priv     *somecrypto.PaillierPriv
+	Pub      *somecrypto.PaillierPub
 	MulShare *big.Int
 	AddShare *big.Int
 	V        *big.Int
@@ -38,7 +46,7 @@ func NewPM2AState() *PM2AState {
 	return st
 }
 
-func PrintPM2AState(ses *Session) {
+func PrintPM2AState(ses *edumpc.Session) {
 	fmt.Println("Printing state...")
 	st := (ses.State).(*PM2AState)
 	fmt.Println("Role:", st.Role)
@@ -54,7 +62,7 @@ func PrintPM2AState(ses *Session) {
 	fmt.Println("V1:", st.V1)
 }
 
-func myDetails(ses *Session) {
+func myDetails(ses *edumpc.Session) {
 	fmt.Println("First attempt")
 	fmt.Println("Session ID", ses.ID)
 	fmt.Println("Protocol", ses.Protocol)
@@ -84,19 +92,19 @@ func myDetails(ses *Session) {
 	}
 }
 
-func InitNewPM2A(mpcn *MPCNode) {
+func InitNewPM2A(mpcn *edumpc.MPCNode) {
 	var err error
 	sid := "pm2a-" + uuid.NewString()
 	ses := NewSenderPM2ASession(mpcn, sid)
 	st := (ses.State).(*PM2AState)
 
-	st.MulShare = PromptForNumber("Local secret value", "")
+	st.MulShare = edumpc.PromptForNumber("Local secret value", "")
 
-	b := PromptForNumber("Bits for primes:", "1024")
+	b := edumpc.PromptForNumber("Bits for primes:", "1024")
 	bits := int(b.Int64())
-	st.Priv, st.Pub = GenerateNiceKeyPair(bits)
+	st.Priv, st.Pub = somecrypto.GenerateNiceKeyPair(bits)
 
-	mpcm := new(MPCMessage)
+	mpcm := new(edumpc.MPCMessage)
 	mpcm.Command = "join"
 	msg := &PM2AMessage{}
 	msg.N = st.Priv.N
@@ -108,20 +116,22 @@ func InitNewPM2A(mpcn *MPCNode) {
 	}
 	mpcm.Message = string(bs)
 
-	mpcm.Protocol = PM2A
+	mpcm.Protocol = edumpc.PM2A
 	ses.Respond(mpcm)
 
 }
 
-func NewRecPM2ASession(mpcn *MPCNode, sessionID string) *Session {
+func NewRecPM2ASession(mpcn *edumpc.MPCNode, sessionID string) *edumpc.Session {
 	ses := NewSenderPM2ASession(mpcn, sessionID)
 	st := (ses.State).(*PM2AState)
 	st.Role = "receiver"
 	return ses
 }
 
-func NewSenderPM2ASession(mpcn *MPCNode, sessionID string) *Session {
-	ses := new(Session)
+const PM2A = edumpc.Protocol("PM2A")
+
+func NewSenderPM2ASession(mpcn *edumpc.MPCNode, sessionID string) *edumpc.Session {
+	ses := new(edumpc.Session)
 	ses.ID = sessionID
 	ses.Protocol = PM2A
 	ses.HandleMessage = HandlePM2AMessage
@@ -133,13 +143,14 @@ func NewSenderPM2ASession(mpcn *MPCNode, sessionID string) *Session {
 	ses.State = st
 	ses.Status = "awaiting peer"
 	ses.ID = sessionID
-	mpcn.sessions[ses.ID] = ses
+	mpcn.NewLocalSession(sessionID, ses)
+	//mpcn.sessions[ses.ID] = ses
 	ses.Node = mpcn
 	return ses
 
 }
 
-func HandlePM2AMessage(mpcm *MPCMessage, ses *Session) {
+func HandlePM2AMessage(mpcm *edumpc.MPCMessage, ses *edumpc.Session) {
 	//st := (ses.State).(*PM2AState)
 	switch mpcm.Command {
 	case "join":
@@ -152,7 +163,7 @@ func HandlePM2AMessage(mpcm *MPCMessage, ses *Session) {
 			fmt.Println(err)
 		}
 		st := (ses.State).(*PM2AState)
-		st.Pub = &PaillierPub{msg.N, new(big.Int).Mul(msg.N, msg.N)}
+		st.Pub = &somecrypto.PaillierPub{msg.N, new(big.Int).Mul(msg.N, msg.N)}
 		st.V = msg.V
 		ses.Status = "invitation received"
 
@@ -180,7 +191,7 @@ func HandlePM2AMessage(mpcm *MPCMessage, ses *Session) {
 
 }
 
-func SendOK(ses *Session) {
+func SendOK(ses *edumpc.Session) {
 	items := []string{"Yes", "No"}
 	pr := promptui.Select{Label: "Acknowledge successful process",
 		Items: items,
@@ -190,13 +201,15 @@ func SendOK(ses *Session) {
 	case "No":
 		return
 	case "Yes":
-		ses.Respond(&MPCMessage{Command: "OK"})
+		ses.Respond(&edumpc.MPCMessage{Command: "OK"})
 		ses.Status = senderfinal
 		ses.Interactive = false
 	}
 }
 
-func PM2APromptJoin(ses *Session) {
+var up = "up"
+
+func PM2APromptJoin(ses *edumpc.Session) {
 	//ots := ses.State.(*OT1State)
 	items := []string{"Yes", "No", up}
 	pr := promptui.Select{Label: "Accept PM2A invitation",
@@ -207,15 +220,16 @@ func PM2APromptJoin(ses *Session) {
 	case up:
 		return
 	case "No":
-		delete(ses.Node.sessions, ses.ID)
+		//delete(ses.Node.sessions, ses.ID)
+		ses.Inactive = true
 	case "Yes":
 
-		v := PromptForNumber("Local multiplicative share", "")
+		v := edumpc.PromptForNumber("Local multiplicative share", "")
 
 		st := (ses.State).(*PM2AState)
 		st.MulShare = v
 
-		bf := PromptForNumber("Local aditive share", "")
+		bf := edumpc.PromptForNumber("Local aditive share", "")
 		st.AddShare = bf //TODO randomize
 		E := st.Pub.Encrypt(new(big.Int).Neg(st.AddShare))
 		V1 := new(big.Int).Exp(st.V, st.MulShare, st.Pub.N2)
@@ -231,7 +245,7 @@ func PM2APromptJoin(ses *Session) {
 			fmt.Println(err)
 		}
 
-		mpcm := new(MPCMessage)
+		mpcm := new(edumpc.MPCMessage)
 		mpcm.Message = string(b)
 		mpcm.Command = "save"
 
@@ -243,6 +257,6 @@ func PM2APromptJoin(ses *Session) {
 
 func HandleInitialMessage() {}
 
-func PM2APrompt(ses *Session) {
+func PM2APrompt(ses *edumpc.Session) {
 
 }

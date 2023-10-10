@@ -50,7 +50,7 @@ func ShouldJoinSigning(ses *edumpc.Session) {
 		respmsg.Protocol = sepprotocol
 		nd, _ := plumbing.GetMPCNode()
 		respmsg.SenderID = nd.GetNodeID()
-		respmsg.Message = respsepmsg
+		respmsg.Message = string(respsepmsg)
 		ses.Interactive = false
 		ses.Respond(respmsg)
 	}
@@ -86,7 +86,7 @@ func TriggerSigning(mpcn *edumpc.MPCNode) {
 		gensubmsg.SessionID = sepsesid
 		gensubmsg.KeyID = keyID
 		bt, _ := json.Marshal(gensubmsg)
-		genmsg.Message = bt
+		genmsg.Message = string(bt)
 		fmt.Println("prot", ses.Protocol)
 		ses.Interactive = false
 		ses.Status = "Awaiting"
@@ -107,7 +107,7 @@ func JoinSigning(ses *edumpc.Session) ([]byte, error) {
 	}
 	envelope := ses.LastMessage()
 	genmsg := new(KeyGenMsg)
-	json.Unmarshal(envelope.Message, genmsg)
+	json.Unmarshal([]byte(envelope.Message), genmsg)
 	if len(genmsg.SessionID) > 0 {
 		respmsg := new(KeyGenMsg)
 		respmsg.SessionID = genmsg.SessionID

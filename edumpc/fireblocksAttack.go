@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/manifoldco/promptui"
+	"github.com/san-lab/EduMPC/somecrypto"
 )
 
 type PM2AttMessage struct {
@@ -16,8 +17,8 @@ type PM2AttMessage struct {
 
 type PM2AttState struct {
 	Role     string
-	Priv     *PaillierPriv
-	Pub      *PaillierPub
+	Priv     *somecrypto.PaillierPriv
+	Pub      *somecrypto.PaillierPub
 	MulShare *big.Int
 	AddShare *big.Int
 	V        *big.Int
@@ -67,7 +68,7 @@ func InitNewPM2Att(mpcn *MPCNode) {
 
 	b := PromptForNumber("Bits for primes:", "256")
 	bits := int(b.Int64())
-	st.Priv, st.Pub, st.Ps, st.Qs = GenerateAttackKey(bits)
+	st.Priv, st.Pub, st.Ps, st.Qs = somecrypto.GenerateAttackKey(bits)
 
 	mpcm := new(MPCMessage)
 	mpcm.Command = "join"
@@ -127,7 +128,7 @@ func HandlePM2AttMessage(mpcm *MPCMessage, ses *Session) {
 			fmt.Println(err)
 		}
 		st := (ses.State).(*PM2AttState)
-		st.Pub = &PaillierPub{msg.N, new(big.Int).Mul(msg.N, msg.N)}
+		st.Pub = &somecrypto.PaillierPub{msg.N, new(big.Int).Mul(msg.N, msg.N)}
 		st.V = msg.V
 
 	case "save":
@@ -139,7 +140,7 @@ func HandlePM2AttMessage(mpcm *MPCMessage, ses *Session) {
 			fmt.Println(err)
 		}
 		st.V1 = msg.V
-		st.rs, st.xs, st.x = FireblocksAttack(st.V, msg.V, st.Ps, st.Qs)
+		st.rs, st.xs, st.x = somecrypto.FireblocksAttack(st.V, msg.V, st.Ps, st.Qs)
 		fmt.Println(msg.N.Cmp(st.AddShare))
 
 	default:
