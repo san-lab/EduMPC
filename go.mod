@@ -3,16 +3,19 @@ module github.com/san-lab/EduMPC
 go 1.20
 
 //replace github.com/san-lab/EduMPC/sepior => ./sepior
+replace gitlab.com/sepior/go-tsm-sdk => /home/przemek/go/src/gitlab.com/go-tsm-sdk
 
 require (
 	github.com/google/uuid v1.3.0
 	github.com/libp2p/go-libp2p v0.26.2
 	github.com/libp2p/go-libp2p-pubsub v0.9.2
 	github.com/manifoldco/promptui v0.9.0
+	gitlab.com/sepior/go-tsm-sdk v0.0.0-00010101000000-000000000000
 //github.com/san-lab/pubsubmpc/sepior v0.0.0-00010101000000-000000000000
 )
 
 require (
+	filippo.io/edwards25519 v1.0.0 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -83,6 +86,7 @@ require (
 	github.com/quic-go/quic-go v0.33.0 // indirect
 	github.com/quic-go/webtransport-go v0.5.2 // indirect
 	github.com/raulk/go-watchdog v1.3.0 // indirect
+	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/dig v1.15.0 // indirect
