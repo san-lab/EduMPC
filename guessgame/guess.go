@@ -9,7 +9,7 @@ import (
 	"github.com/san-lab/EduMPC/edumpc"
 )
 
-const Guess = edumpc.Protocol("Guess the number game")
+const Guess = edumpc.Protocol("Guess the Number game")
 const newgame = "New game"
 const joingame = "Invitation received"
 const resolution = "Number guessed"
@@ -19,13 +19,14 @@ type GuessState struct {
 	Tries     int
 }
 
-func init() {
-	edumpc.Protocols[Guess] = &edumpc.SessionHandler{GameInvite, GameAccept}
-	//fmt.Println(edumpc.Protocols)
+var SessionHandler = edumpc.SessionHandler{GameInvite, GameAccept, Save, Load}
+
+func Init(*edumpc.MPCNode) {
+	edumpc.Protocols[Guess] = &SessionHandler
 }
 
-// Allows main() to regiter the package
-func Init(*edumpc.MPCNode) {}
+func Save(ses *edumpc.Session) ([]byte, error) { return nil, nil }
+func Load(ses *edumpc.Session, b []byte) error { return nil }
 
 func GameInvite(mpcn *edumpc.MPCNode) {
 	fmt.Println("Starting a new game")
@@ -83,6 +84,7 @@ func HandleGuessMessage(mpcm *edumpc.MPCMessage, ses *edumpc.Session) {
 		ses.State = st
 
 	case "success":
+		//TODO: Verify the guess
 		fmt.Println(mpcm.Message)
 		ses.Status = resolution
 		st := new(GuessState)
@@ -92,6 +94,7 @@ func HandleGuessMessage(mpcm *edumpc.MPCMessage, ses *edumpc.Session) {
 		}
 		ses.State = st
 		ses.Details = myDetails
+		ses.Inactive = true
 	}
 }
 
@@ -130,6 +133,7 @@ func GuessPrompt(ses *edumpc.Session) {
 		ses.Status = resolution
 		ses.Details = myDetails
 		ses.Interactive = false
+		ses.Inactive = true
 	case 1:
 		fmt.Println("Too big")
 	}

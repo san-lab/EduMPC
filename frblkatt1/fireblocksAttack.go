@@ -1,4 +1,4 @@
-package edumpc
+package frblkatt1
 
 import (
 	"encoding/json"
@@ -7,8 +7,15 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/manifoldco/promptui"
+	"github.com/san-lab/EduMPC/edumpc"
 	"github.com/san-lab/EduMPC/somecrypto"
 )
+
+const PM2Att = edumpc.Protocol("Fireblocks MtA attact No3")
+
+func Init(*edumpc.MPCNode) {
+	edumpc.Protocols[PM2Att] = &edumpc.SessionHandler{InitNewPM2Att, NewRecPM2AttSession, nil, nil}
+}
 
 type PM2AttMessage struct {
 	N *big.Int
@@ -37,7 +44,7 @@ func NewPM2AttState() *PM2AttState {
 	return st
 }
 
-func PrintPM2AttState(ses *Session) {
+func PrintPM2AttState(ses *edumpc.Session) {
 	fmt.Println("Printing state...")
 	st := (ses.State).(*PM2AttState)
 	fmt.Println("Role:", st.Role)
@@ -58,19 +65,19 @@ func PrintPM2AttState(ses *Session) {
 	fmt.Println("x:", st.x)
 }
 
-func InitNewPM2Att(mpcn *MPCNode) {
+func InitNewPM2Att(mpcn *edumpc.MPCNode) {
 	var err error
 	sid := "PM2Att-" + uuid.NewString()
 	ses := NewSenderPM2AttSession(mpcn, sid)
 	st := (ses.State).(*PM2AttState)
 
-	st.MulShare = PromptForNumber("Attack value", "4")
+	st.MulShare = edumpc.PromptForNumber("Attack value", "4")
 
-	b := PromptForNumber("Bits for primes:", "256")
+	b := edumpc.PromptForNumber("Bits for primes:", "256")
 	bits := int(b.Int64())
 	st.Priv, st.Pub, st.Ps, st.Qs = somecrypto.GenerateAttackKey(bits)
 
-	mpcm := new(MPCMessage)
+	mpcm := new(edumpc.MPCMessage)
 	mpcm.Command = "join"
 	msg := &PM2AttMessage{}
 	msg.N = st.Priv.N
@@ -89,16 +96,16 @@ func InitNewPM2Att(mpcn *MPCNode) {
 
 }
 
-func NewRecPM2AttSession(mpcn *MPCNode, sessionID string) *Session {
+func NewRecPM2AttSession(mpcn *edumpc.MPCNode, sessionID string) *edumpc.Session {
 	ses := NewSenderPM2AttSession(mpcn, sessionID)
 	st := (ses.State).(*PM2AttState)
 	st.Role = "receiver"
 	return ses
 }
 
-func NewSenderPM2AttSession(mpcn *MPCNode, sessionID string) *Session {
+func NewSenderPM2AttSession(mpcn *edumpc.MPCNode, sessionID string) *edumpc.Session {
 
-	ses := new(Session)
+	ses := new(edumpc.Session)
 	ses.ID = sessionID
 	ses.Protocol = PM2Att
 	ses.HandleMessage = HandlePM2AttMessage
@@ -109,13 +116,13 @@ func NewSenderPM2AttSession(mpcn *MPCNode, sessionID string) *Session {
 	ses.State = st
 	ses.Status = "awaiting peer"
 	ses.ID = sessionID
-	mpcn.sessions[ses.ID] = ses
+	mpcn.NewLocalSession(ses.ID, ses)
 	ses.Node = mpcn
 	return ses
 
 }
 
-func HandlePM2AttMessage(mpcm *MPCMessage, ses *Session) {
+func HandlePM2AttMessage(mpcm *edumpc.MPCMessage, ses *edumpc.Session) {
 	//st := (ses.State).(*PM2AttState)
 	switch mpcm.Command {
 	case "join":
@@ -150,7 +157,9 @@ func HandlePM2AttMessage(mpcm *MPCMessage, ses *Session) {
 
 }
 
-func PM2AttPromptJoin(ses *Session) {
+const up = "Up"
+
+func PM2AttPromptJoin(ses *edumpc.Session) {
 	//ots := ses.State.(*OT1State)
 	items := []string{"Yes", "No", up}
 	pr := promptui.Select{Label: "Accept PM2A invitation",
@@ -161,15 +170,15 @@ func PM2AttPromptJoin(ses *Session) {
 	case up:
 		return
 	case "No":
-		delete(ses.Node.sessions, ses.ID)
+		//delete(ses.Node.sessions, ses.ID)
 	case "Yes":
 
-		v := PromptForNumber("Local multiplicative share", "")
+		v := edumpc.PromptForNumber("Local multiplicative share", "")
 
 		st := (ses.State).(*PM2AttState)
 		st.MulShare = v
 
-		bf := PromptForNumber("Local aditive share", "")
+		bf := edumpc.PromptForNumber("Local aditive share", "")
 		st.AddShare = bf //TODO randomize
 		E := st.Pub.Encrypt(new(big.Int).Neg(st.AddShare))
 		V1 := new(big.Int).Exp(st.V, st.MulShare, st.Pub.N2)
@@ -185,7 +194,7 @@ func PM2AttPromptJoin(ses *Session) {
 			fmt.Println(err)
 		}
 
-		mpcm := new(MPCMessage)
+		mpcm := new(edumpc.MPCMessage)
 		mpcm.Message = string(b)
 		mpcm.Command = "save"
 

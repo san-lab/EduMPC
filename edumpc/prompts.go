@@ -71,35 +71,37 @@ func ConfigUI(mpcn *MPCNode) {
 
 func SessionSelectUI(mpcn *MPCNode) {
 	uncoloredItems := map[string]string{} // Need to keep the inactive sessions uncolored id
-	items := []string{}
-	for key, ses := range mpcn.sessions {
-		if !ses.Inactive {
-			items = append(items, key)
-			uncoloredItems[key] = key
-		} else {
-			greyKey := promptui.Styler(promptui.FGFaint)(key)
-			items = append(items, greyKey)
-			uncoloredItems[greyKey] = key
+	for {
+		items := []string{}
+		for key, ses := range mpcn.sessions {
+			if !ses.Inactive {
+				items = append(items, key)
+				uncoloredItems[key] = key
+			} else {
+				greyKey := promptui.Styler(promptui.FGFaint)(key)
+				items = append(items, greyKey)
+				uncoloredItems[greyKey] = key
+			}
 		}
-	}
-	items = append(items, news)
-	uncoloredItems[news] = news
-	items = append(items, up)
-	uncoloredItems[up] = up
+		items = append(items, news)
+		uncoloredItems[news] = news
+		items = append(items, up)
+		uncoloredItems[up] = up
 
-	pr := promptui.Select{Label: "Current sessions",
-		Items: items,
-	}
-	_, sid, _ := pr.Run()
-	sid = uncoloredItems[sid]
-	if sid == news {
-		StartNewSessionUI(mpcn)
-	}
-	if sid == up {
-		return
-	}
-	if ses, ok := mpcn.sessions[sid]; ok {
-		SessionUI(mpcn, ses)
+		pr := promptui.Select{Label: "Current sessions",
+			Items: items,
+		}
+		_, sid, _ := pr.Run()
+		sid = uncoloredItems[sid]
+		if sid == news {
+			StartNewSessionUI(mpcn)
+		}
+		if sid == up {
+			return
+		}
+		if ses, ok := mpcn.sessions[sid]; ok {
+			SessionUI(mpcn, ses)
+		}
 	}
 
 }
@@ -121,7 +123,7 @@ func SessionUI(mpcn *MPCNode, ses *Session) {
 			if ses.Details != nil {
 				ses.Details(ses)
 			} else {
-				History(ses)
+				ShowDetails(ses)
 			}
 		}
 		if res == useraction {

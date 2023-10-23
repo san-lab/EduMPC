@@ -47,7 +47,7 @@ func ShouldJoinSigning(ses *edumpc.Session) {
 		}
 		respmsg := new(edumpc.MPCMessage)
 		respmsg.Command = "Add"
-		respmsg.Protocol = sepprotocol
+		respmsg.Protocol = ProtName
 		nd, _ := plumbing.GetMPCNode()
 		respmsg.SenderID = nd.GetNodeID()
 		respmsg.Message = string(respsepmsg)

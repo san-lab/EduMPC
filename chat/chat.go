@@ -7,16 +7,17 @@ import (
 	"github.com/san-lab/EduMPC/edumpc"
 )
 
-const chat = edumpc.Protocol("Chat")
+const ProtName = edumpc.Protocol("Chat")
 
-func Init(*edumpc.MPCNode) {
-	edumpc.Protocols[chat] = &edumpc.SessionHandler{InitNewChat, NewChatSession}
-}
+var SessionHandler = edumpc.SessionHandler{InitNewChat, NewChatSession, Save, Load}
+
+func Save(ses *edumpc.Session) ([]byte, error) { return nil, nil }
+func Load(ses *edumpc.Session, b []byte) error { return nil }
 
 func NewChatSession(mpcn *edumpc.MPCNode, sessionID string) *edumpc.Session {
 	ses := new(edumpc.Session)
 	ses.ID = sessionID
-	ses.Protocol = chat
+	ses.Protocol = ProtName
 	ses.HandleMessage = HandleChatMessage
 	ses.Details = edumpc.ShowHistory
 	ses.Interactive = true
@@ -57,7 +58,11 @@ func InitNewChat(mpcn *edumpc.MPCNode) {
 	txt, _ := pr.Run()
 	mpcm := new(edumpc.MPCMessage)
 	mpcm.Message = txt
-	mpcm.Protocol = chat
+	mpcm.Protocol = ProtName
 	ses.Respond(mpcm)
 
+}
+
+func Init(*edumpc.MPCNode) {
+	edumpc.Protocols[ProtName] = &SessionHandler
 }

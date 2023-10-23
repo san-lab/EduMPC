@@ -9,9 +9,6 @@ import (
 	"github.com/san-lab/EduMPC/edumpc"
 )
 
-// Allows main() to regiter the package
-func Init(*edumpc.MPCNode) {}
-
 type OT1State struct {
 	Role        string
 	Msg1        string
@@ -48,23 +45,28 @@ func InitNewOt1(mpcn *edumpc.MPCNode) {
 	ots.Role = "recipient"
 
 	mpcm := new(edumpc.MPCMessage)
-	mpcm.Protocol = ot1
+	mpcm.Protocol = ProtName
 	mpcm.Command = "join"
 	ses.Respond(mpcm)
 
 	return
 }
 
-const ot1 = edumpc.Protocol("ot1")
+const ProtName = edumpc.Protocol("ot1")
 
-func init() {
-	edumpc.Protocols[ot1] = &edumpc.SessionHandler{InitNewOt1, NewOt1Session}
+var SessionHandler = edumpc.SessionHandler{InitNewOt1, NewOt1Session, Save, Load}
+
+func Save(ses *edumpc.Session) ([]byte, error) { return nil, nil }
+func Load(ses *edumpc.Session, b []byte) error { return nil }
+
+func Init(mpcn *edumpc.MPCNode) {
+	edumpc.Protocols[ProtName] = &SessionHandler
 }
 
 func NewOt1Session(mpcn *edumpc.MPCNode, sessionID string) *edumpc.Session {
 	ses := new(edumpc.Session)
 	ses.ID = sessionID
-	ses.Protocol = ot1
+	ses.Protocol = ProtName
 	ses.HandleMessage = HandleOt1Message
 	ses.Details = PrintState
 	ses.Interactive = true

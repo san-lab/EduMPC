@@ -11,11 +11,16 @@ import (
 	"github.com/san-lab/EduMPC/somecrypto"
 )
 
-func init() {}
+var SessionHandler = edumpc.SessionHandler{InitNewPM2A, NewRecPM2ASession, Save, Load}
+
+const PM2A = edumpc.Protocol("M2Awith Paillier")
 
 func Init(*edumpc.MPCNode) {
-	edumpc.Protocols[PM2A] = &edumpc.SessionHandler{InitNewPM2A, NewRecPM2ASession}
+	edumpc.Protocols[PM2A] = &SessionHandler
 }
+
+func Save(ses *edumpc.Session) ([]byte, error) { return nil, nil }
+func Load(ses *edumpc.Session, b []byte) error { return nil }
 
 type PM2AMessage struct {
 	N *big.Int
@@ -83,12 +88,12 @@ func myDetails(ses *edumpc.Session) {
 		fmt.Println("Secret multiplicative share", sessionState.MulShare)
 		fmt.Println("Secret additive share", sessionState.AddShare)
 
-	case completed:
+	case completed, senderfinal:
 		fmt.Println("Encrypted additive share received and decrypted")
 		fmt.Println("Secret multiplicative share", sessionState.MulShare)
 		fmt.Println("Secret additive share", sessionState.AddShare)
 	default:
-		fmt.Println("I don´t know where we are")
+		fmt.Println("I don´t know where we are:", ses.Status)
 	}
 }
 
@@ -116,7 +121,7 @@ func InitNewPM2A(mpcn *edumpc.MPCNode) {
 	}
 	mpcm.Message = string(bs)
 
-	mpcm.Protocol = edumpc.PM2A
+	mpcm.Protocol = PM2A
 	ses.Respond(mpcm)
 
 }
@@ -127,8 +132,6 @@ func NewRecPM2ASession(mpcn *edumpc.MPCNode, sessionID string) *edumpc.Session {
 	st.Role = "receiver"
 	return ses
 }
-
-const PM2A = edumpc.Protocol("PM2A")
 
 func NewSenderPM2ASession(mpcn *edumpc.MPCNode, sessionID string) *edumpc.Session {
 	ses := new(edumpc.Session)
@@ -183,7 +186,7 @@ func HandlePM2AMessage(mpcm *edumpc.MPCMessage, ses *edumpc.Session) {
 
 	case "OK":
 		ses.Status = confirmed
-
+		ses.Inactive = true
 	default:
 		fmt.Println("we shouldnt be here...")
 
@@ -204,6 +207,7 @@ func SendOK(ses *edumpc.Session) {
 		ses.Respond(&edumpc.MPCMessage{Command: "OK"})
 		ses.Status = senderfinal
 		ses.Interactive = false
+		ses.Inactive = true
 	}
 }
 

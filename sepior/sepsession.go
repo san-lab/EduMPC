@@ -11,16 +11,21 @@ import (
 	"github.com/san-lab/EduMPC/edumpc"
 )
 
-const sepprotocol = edumpc.Protocol("sepior")
+const ProtName = edumpc.Protocol("sepior")
 
-func init() {
-	edumpc.Protocols[sepprotocol] = &edumpc.SessionHandler{InitNewSepSessionUI, NewSepiorSession}
+var SessionHandler = edumpc.SessionHandler{InitNewSepSessionUI, NewSepiorSession, Save, Load}
+
+func Save(ses *edumpc.Session) ([]byte, error) { return nil, nil }
+func Load(ses *edumpc.Session, b []byte) error { return nil }
+
+func Init(mpcn *edumpc.MPCNode) {
+	edumpc.Protocols[ProtName] = SessionHandler
 }
 
 func NewSepiorSession(mpcn *edumpc.MPCNode, sessionID string) *edumpc.Session {
 	ses := new(edumpc.Session)
 	ses.ID = sessionID
-	ses.Protocol = sepprotocol
+	ses.Protocol = ProtName
 	ses.HandleMessage = HandleSepMessage
 	ses.Details = ShowDetails
 	ses.Interactive = true

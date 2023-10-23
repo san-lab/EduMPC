@@ -155,3 +155,7 @@ func (mpcn *MPCNode) NewLocalSession(id string, ses *Session) {
 func (mpcn *MPCNode) GetNodeID() string {
 	return string(mpcn.self)
 }
+
+func (mpcn *MPCNode) Serialize() {
+
+}

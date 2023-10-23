@@ -39,6 +39,7 @@ func (mpcn *MPCNode) NewIncomingSession(protocol Protocol, sessionID string) *Se
 		return proth.NewSessionTriggered(mpcn, sessionID)
 	} else {
 		fmt.Println("Unknown protocol:", protocol)
+		fmt.Println(Protocols)
 		return NewDumbSession(mpcn, sessionID)
 	}
 }
@@ -69,7 +70,7 @@ func NewDumbSession(mpcn *MPCNode, sessionID string) *Session {
 	ses.ID = sessionID
 	ses.Protocol = dumb
 	ses.HandleMessage = func(*MPCMessage, *Session) {}
-	ses.Details = func(*Session) { fmt.Println("No details to show") }
+	ses.Details = ShowDetails
 	ses.Interactive = false
 	ses.NextPrompt = nil
 	mpcn.sessions[ses.ID] = ses
@@ -82,19 +83,10 @@ type Protocol string
 // const chat = Protocol("chat")
 const dumb = Protocol("Unknown protocol")
 
-// const ot1 = Protocol("ot1")
-const PM2A = Protocol("Paillier M2A") //Paillier Multi-to-Additive
-const PM2Att = Protocol("Fireblocks attack")
-
-//const Lin = Protocol("Lindell")
-
 func init() {
-	//Protocols[chat] = &SessionHandler{InitNewChat, NewChatSession}
-	Protocols[dumb] = &SessionHandler{func(n *MPCNode) { fmt.Println("Dumb") }, NewDumbSession}
-	//Protocols[ot1] = &SessionHandler{InitNewOt1, NewOt1Session}
-	//Protocols[PM2A] = &SessionHandler{InitNewPM2A, NewRecPM2ASession}
-	Protocols[PM2Att] = &SessionHandler{InitNewPM2Att, NewRecPM2AttSession}
-	//Protocols[Lin] = &SessionHandler{InitNewLin, NewRecLinSession}
+
+	Protocols[dumb] = &SessionHandler{func(n *MPCNode) { fmt.Println("Dumb") }, NewDumbSession, nil, nil}
+
 }
 
 func ShowHistory(ses *Session) {
@@ -105,9 +97,18 @@ func ShowHistory(ses *Session) {
 	}
 }
 
+func ShowDetails(ses *Session) {
+	fmt.Println("ID:\t", ses.ID)
+	_, ok := Protocols[ses.Protocol]
+	fmt.Println("Protocol\t:", ses.Protocol, "known:", ok)
+	fmt.Println("Status\t:", ses.Status)
+}
+
 type SessionHandler struct {
 	NewSessionUI        func(*MPCNode)
 	NewSessionTriggered func(mpcn *MPCNode, sessionID string) *Session
+	SaveSession         func(*Session) ([]byte, error)
+	RestoreSession      func(*Session, []byte) error
 }
 
 var Protocols = map[Protocol]*SessionHandler{}

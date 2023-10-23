@@ -1,4 +1,4 @@
-package lindellmta
+package parityattack
 
 import (
 	"crypto/ecdsa"
@@ -246,7 +246,11 @@ func InitNewLin(mpcn *edumpc.MPCNode) {
 	ses.Interactive = false
 }
 
-const Lin = edumpc.Protocol("Lindell")
+const Lin = edumpc.Protocol("Parity Attack on Lindell MtA")
+
+func Init(*edumpc.MPCNode) {
+	edumpc.Protocols[Lin] = &edumpc.SessionHandler{InitNewLin, NewRecLinSession, nil, nil}
+}
 
 func NewSenderLinSession(mpcn *edumpc.MPCNode, sessionID string) *edumpc.Session {
 	ses := new(edumpc.Session)
@@ -274,6 +278,8 @@ func NewRecLinSession(mpcn *edumpc.MPCNode, sessionID string) *edumpc.Session {
 	st.Role = "receiver"
 	return ses
 }
+
+const up = "Up"
 
 func LinPromptJoinA(ses *edumpc.Session) {
 	lin := ses.State.(*LinState)

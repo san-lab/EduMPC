@@ -7,8 +7,12 @@ import (
 
 	"github.com/san-lab/EduMPC/chat"
 	"github.com/san-lab/EduMPC/edumpc"
+	"github.com/san-lab/EduMPC/frblkatt1"
 	"github.com/san-lab/EduMPC/guessgame"
+	"github.com/san-lab/EduMPC/lindellmta"
 	"github.com/san-lab/EduMPC/ot"
+
+	"github.com/san-lab/EduMPC/parityattack"
 	"github.com/san-lab/EduMPC/plumbing"
 	"github.com/san-lab/EduMPC/sepior"
 )
@@ -33,6 +37,9 @@ func main() {
 	guessgame.Init(mpcn)
 	ot.Init(mpcn)
 	chat.Init(mpcn)
+	parityattack.Init(mpcn)
+	frblkatt1.Init(mpcn)
+	lindellmta.Init(mpcn)
 
 	//Init UI
 	edumpc.TopUI(mpcn)

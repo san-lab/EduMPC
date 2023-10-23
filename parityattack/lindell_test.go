@@ -1,4 +1,4 @@
-package lindellmta
+package parityattack
 
 import (
 	"crypto/ecdsa"
