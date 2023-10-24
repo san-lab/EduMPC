@@ -32,7 +32,7 @@ const status_received_invite = "Received the invitation and the public paillier 
 const status_joined = "Joined the session, generated and sent partial keys"
 const status_keygen_end = "Key generation stage finished. Public ECDSA key reconstructed"
 const status_nonce_sent = "Partial nonce generated and sent"
-const status_presign_end = "Presign stage finished. Public nonce reconstrucuted"
+const status_presign_end = "Presign stage finished. Public nonce reconstructed"
 const status_partialsig_sent = "Computed and sent partial signature"
 const status_signed_true = "Computed final signature. Signature is VALID. Sent validity to other party"
 const status_signed_false = "Computed final signature. Signature is INVALID. Sent validity to other party"
@@ -348,6 +348,7 @@ func LinKeyGenEndB(ses *edumpc.Session) {
 }
 
 func LinPreSignA(ses *edumpc.Session) {
+	clearPreSign(ses)
 	lin := ses.State.(*LinState)
 
 	suggestedMessage := "test"
@@ -390,6 +391,11 @@ func LinPreSignA(ses *edumpc.Session) {
 }
 
 func LinPreSignB(ses *edumpc.Session) {
+	// clearPreSign(ses)
+	// Would need a clear() method that doesnt remove the values just received from A
+	// However this isnt necessary anyway, since the non interactive protocol doesnt care about "redeability"
+	// and the interactive one has enough delay to work around the race condition
+
 	lin := ses.State.(*LinState)
 	lin.PartialNonceB, _ = rand.Int(rand.Reader, big.NewInt(1000))
 	lin.PubPartialNonceB = new(somecrypto.ECPoint)
@@ -489,9 +495,10 @@ func RepeatA(ses *edumpc.Session) {
 			ses.Interactive = false
 
 		case "1":
-			// State cleanup for better readeablity
+			// State cleanup here for better readeablity
 			clearPreSign(ses)
 			ses.Status = status_restarting
+			// In the interactive version there is enough delay to prevent race condition
 			ses.Respond(&edumpc.MPCMessage{Command: command_restart_B})
 			ses.Interactive = true
 			ses.NextPrompt = LinPreSignA
@@ -499,17 +506,16 @@ func RepeatA(ses *edumpc.Session) {
 		default:
 			// Perform the rounds in a non-interactive way
 			NonInteractiveRoundsLeft = int(rounds.Int64())
-
-			clearPreSign(ses)
 			ses.Status = status_restarting
-			ses.Respond(&edumpc.MPCMessage{Command: command_restart_B})
+			// ses.Respond(&edumpc.MPCMessage{Command: command_restart_B})
+			// Since this is not interactive, this command is not guaranteed to go before LinPreSignA
+			// and LinPreSignB, therefore might delete the newly calculated nonces -> race condition
 			ses.Interactive = false
 			LinPreSignA(ses)
 		}
 	} else {
-		clearPreSign(ses)
 		ses.Status = status_restarting
-		ses.Respond(&edumpc.MPCMessage{Command: command_restart_B})
+		// ses.Respond(&edumpc.MPCMessage{Command: command_restart_B})
 		ses.Interactive = false
 		LinPreSignA(ses)
 	}
@@ -518,11 +524,11 @@ func RepeatA(ses *edumpc.Session) {
 func clearPreSign(ses *edumpc.Session) {
 	lin := ses.State.(*LinState)
 	// State cleanup for better readeablity
-	lin.Message = ""
+	lin.Message = "" // This value would be relevant for B in a new iteration of the protocol
 	lin.PartialNonceA = nil
 	lin.PartialNonceB = nil
 	lin.PubNonce = nil
-	lin.PubPartialNonceA = nil
+	lin.PubPartialNonceA = nil // This value would be relevant for B in a new iteration of the protocol
 	lin.PubPartialNonceB = nil
 	lin.D = nil
 	lin.S = nil
