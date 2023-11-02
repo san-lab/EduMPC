@@ -33,7 +33,7 @@ func AskToJoinKeyGeneration(ses *edumpc.Session) {
 			return
 		}
 		respmsg := new(edumpc.MPCMessage)
-		respmsg.Command = "Add"
+		respmsg.Command = AddMetoKeyGen
 		respmsg.Protocol = ProtName
 		nd, _ := plumbing.GetMPCNode()
 		respmsg.SenderID = nd.GetNodeID()
@@ -59,8 +59,8 @@ func TriggerKeyGeneration(mpcn *edumpc.MPCNode) {
 		go func() { keyID, _ = ecC.KeygenWithSessionID(sepsesid, "secp256k1") }()
 		SessionID := "SEP-" + sepsesid
 		ses := NewSepiorSession(mpcn, SessionID)
-
-		sesState := ses.State.(*KeyGenState)
+		sesState := new(KeyGenState)
+		ses.State = sesState
 		sesState.Initiator = mpcn.GetNodeID()
 		sesState.SepSessionID = sepsesid
 		sesState.KeyID = keyID

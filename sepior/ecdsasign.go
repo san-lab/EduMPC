@@ -4,133 +4,76 @@
 package sepior
 
 import (
-	"encoding/json"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/manifoldco/promptui"
 	"github.com/san-lab/EduMPC/edumpc"
-	"github.com/san-lab/EduMPC/plumbing"
 	"gitlab.com/sepior/go-tsm-sdk/sdk/tsm"
 )
 
-type ECDSASignState struct {
-	Initiator     string
-	ResponsesFrom []string
-	Message       byte
-	PubKeyDer     []byte
-	SignatureDER  []byte
-	SepSessionID  string
-	KeyID         string
-	KeyType       string
-	Curve         string
-	Stage         string
-}
+const selectkey = "Select key"
+const setmessage = "Set message to sign"
+const triggersign = "Initiate signing"
 
-type ECDSASignMessage struct {
-	Message      []byte
-	KeyID        string
-	SessionID    string
-	Curve        string
-	PubKeyDer    []byte
-	SignatureDER []byte
-}
+var curkey *tsm.Key
+var curkeyid string
+var messagetosign string
 
-func ShouldJoinSigning(ses *edumpc.Session) {
-
-	pr := promptui.Prompt{Label: fmt.Sprintf("Join the Key Generation ceremony (ID: %s, from:  %s)? (y/n)", "x", "y"), Default: "y"}
-	res, _ := pr.Run()
-	if res == "y" {
-		respsepmsg, err := JoinECDSASigning(ses)
-		if err != nil {
-			fmt.Println(err)
+func TriggerSigningPrompt(mpcn *edumpc.MPCNode) {
+	for {
+		label := fmt.Sprintf("ECDSASignig")
+		key_l := fmt.Sprintf("%s (%s)", selectkey, curkeyid)
+		msg_l := fmt.Sprintf("%s (%s)", setmessage, messagetosign)
+		pr := promptui.Select{Label: label, Items: []string{key_l, msg_l, triggersign, up}}
+		_, resp, _ := pr.Run()
+		switch resp {
+		case up:
 			return
-		}
-		respmsg := new(edumpc.MPCMessage)
-		respmsg.Command = "Add"
-		respmsg.Protocol = ProtName
-		nd, _ := plumbing.GetMPCNode()
-		respmsg.SenderID = nd.GetNodeID()
-		respmsg.Message = string(respsepmsg)
-		ses.Interactive = false
-		ses.Respond(respmsg)
-	}
-
-}
-
-func JoinECDSASigning(ses *edumpc.Session) ([]byte, error) {
-	fmt.Println("You should not be here!")
-	return nil, nil
-}
-
-func TriggerSigning(mpcn *edumpc.MPCNode) {
-	pr := promptui.Select{Label: "Type of the key to generate?", Items: []string{ecdsakeys, eddkeys, up}}
-	_, resp, _ := pr.Run()
-	switch resp {
-	case ecdsakeys:
-		ecC := tsm.NewECDSAClient(tsmC)
-		sepsesid := ecC.GenerateSessionID()
-		var keyID string
-		go func() { keyID, _ = ecC.KeygenWithSessionID(sepsesid, "secp256k1") }()
-		SessionID := "SEP-" + sepsesid
-		ses := NewSepiorSession(mpcn, SessionID)
-
-		sesState := ses.State.(*KeyGenState)
-		sesState.Initiator = mpcn.GetNodeID()
-		sesState.SepSessionID = sepsesid
-		sesState.KeyID = keyID
-		genmsg := new(edumpc.MPCMessage)
-		genmsg.Protocol = ses.Protocol
-		genmsg.Command = GenKeyCmd
-		gensubmsg := new(KeyGenMsg)
-		gensubmsg.KeyType = "ECDSA"
-		gensubmsg.SessionID = sepsesid
-		gensubmsg.KeyID = keyID
-		bt, _ := json.Marshal(gensubmsg)
-		genmsg.Message = string(bt)
-		fmt.Println("prot", ses.Protocol)
-		ses.Interactive = false
-		ses.Status = "Awaiting"
-		ses.Respond(genmsg)
-		sesState.Stage = "Triggered"
-		fmt.Println("Sent request with sessionID", genmsg.SessionID)
-	default:
-		fmt.Println("Not implemented")
-	}
-}
-
-func JoinSigning(ses *edumpc.Session) ([]byte, error) {
-
-	var err error
-	if len(tsmC.Nodes) == 0 {
-		fmt.Println("Not connected")
-		return nil, fmt.Errorf("Not connected")
-	}
-	envelope := ses.LastMessage()
-	genmsg := new(KeyGenMsg)
-	json.Unmarshal([]byte(envelope.Message), genmsg)
-	if len(genmsg.SessionID) > 0 {
-		respmsg := new(KeyGenMsg)
-		respmsg.SessionID = genmsg.SessionID
-		switch genmsg.KeyType {
-		case "ECDSA":
-			ecC := tsm.NewECDSAClient(tsmC)
-			respmsg.KeyID, err = ecC.KeygenWithSessionID(genmsg.SessionID, "secp256k1")
+		case key_l:
+			curkeyid, curkey = SelectKey(ecKey)
+		case msg_l:
+			pr := promptui.Prompt{}
+			pr.Label = fmt.Sprintf("Message to sign: %s", messagetosign)
+			pr.Default = messagetosign
+			messagetosign, _ = pr.Run()
+		case triggersign:
+			sig, err := TriggerSigning(messagetosign)
 			if err != nil {
 				fmt.Println(err)
-				respmsg.Error = fmt.Sprint(err)
+			} else {
+				fmt.Println("Signature:", hex.EncodeToString(sig))
 			}
-
-			ses.Status = "reacted"
-			ses.Interactive = false
-			return json.Marshal(respmsg)
-
 		default:
-			return nil, fmt.Errorf("Key gen not implemented for:", genmsg.KeyType)
+			fmt.Println("Not implemented")
 		}
-
-	} else {
-		fmt.Println("No sessionID")
-		return nil, fmt.Errorf("No session id")
 	}
+}
+
+func TriggerSigning(messagetosign string) (signature []byte, err error) {
+	if len(messagetosign) == 0 {
+		err = fmt.Errorf("Message not set")
+		return
+	}
+	mhash := sha256.Sum256([]byte(messagetosign))
+	if curkey == nil {
+		err = fmt.Errorf("Key not selected")
+		return
+	}
+	ecC := tsm.NewECDSAClient(tsmC)
+	//sepsesid := ecC.GenerateSessionID()
+	signature, _, err = ecC.Sign(curkeyid, nil, mhash[:])
+	if err != nil {
+		return
+	}
+
+	derPubKey, err := ecC.PublicKey(curkeyid, nil)
+	if err != nil {
+		return
+	}
+
+	err = tsm.ECDSAVerify(derPubKey, mhash[:], signature)
+	return
 
 }

@@ -3,6 +3,7 @@ package edumpc
 import (
 	"fmt"
 	"sync"
+	"time"
 )
 
 type Session struct {
@@ -13,7 +14,7 @@ type Session struct {
 	Interactive       bool
 	PendingUserAction bool
 	NextPrompt        func(*Session)
-	History           []*MPCMessage
+	History           []MessageHistoryEntry
 	messages          map[string]bool
 	Status            string
 	Inactive          bool
@@ -21,9 +22,24 @@ type Session struct {
 	State             interface{}
 }
 
+type MessageHistoryEntry struct {
+	Timestamp time.Time
+	Message   *MPCMessage
+}
+
 func (ses *Session) Respond(msg *MPCMessage) {
 
 	ses.Node.SendMsg(msg, ses)
+}
+
+func (ses *Session) Respond2(command string, msg interface{}) {
+	mpcm := new(MPCMessage)
+	mpcm.Command = command
+	err := mpcm.SetMessage(msg)
+	if err != nil {
+		fmt.Println(err)
+	}
+	ses.Respond(mpcm)
 }
 
 func (ses *Session) LastMessage() *MPCMessage {
@@ -31,7 +47,7 @@ func (ses *Session) LastMessage() *MPCMessage {
 	if l == 0 {
 		return nil
 	}
-	return ses.History[l-1]
+	return ses.History[l-1].Message
 }
 
 func (mpcn *MPCNode) NewIncomingSession(protocol Protocol, sessionID string) *Session {
@@ -50,7 +66,7 @@ func (ses *Session) SessionHandle(msg *MPCMessage) {
 	sesmux.Lock()
 	defer sesmux.Unlock()
 	if ses.History == nil {
-		ses.History = []*MPCMessage{}
+		ses.History = []MessageHistoryEntry{}
 	}
 	if ses.messages == nil {
 		ses.messages = map[string]bool{}
@@ -58,11 +74,14 @@ func (ses *Session) SessionHandle(msg *MPCMessage) {
 	//Check if duplicate
 	if ses.messages[msg.MessageID] {
 		fmt.Println("duplicate message", msg.MessageID)
+		//sesmux.Unlock()
 		return
+
 	}
-	ses.History = append(ses.History, msg)
+	ses.History = append(ses.History, MessageHistoryEntry{time.Now(), msg})
 	ses.messages[msg.MessageID] = true
-	ses.HandleMessage(msg, ses)
+	//sesmux.Unlock()
+	ses.HandleMessage(msg, ses) // Take this out of Mutex
 }
 
 func NewDumbSession(mpcn *MPCNode, sessionID string) *Session {
@@ -91,9 +110,10 @@ func init() {
 
 func ShowHistory(ses *Session) {
 	fmt.Println(ses.ID, "history:")
-	for _, msg := range ses.History {
-
-		fmt.Println(msg.SenderID, msg.Command, string(msg.Message))
+	for _, msgh := range ses.History {
+		msg := msgh.Message
+		fmt.Println(msgh.Timestamp)
+		fmt.Println(msg.SenderID, msg.Command, msg.MessageString())
 	}
 }
 

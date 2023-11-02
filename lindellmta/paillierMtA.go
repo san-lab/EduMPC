@@ -77,7 +77,7 @@ func myDetails(ses *edumpc.Session) {
 	case initial:
 		fmt.Println("This is the first step")
 	case invited:
-		fmt.Println("Invitation received from", ses.History[0].SenderID)
+		fmt.Println("Invitation received from", ses.History[0].Message.SenderID)
 	case joined:
 		fmt.Println("Invitation accepted. Local variables set")
 		fmt.Println("Secret multiplicative share", sessionState.MulShare)

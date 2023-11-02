@@ -127,7 +127,11 @@ func SessionUI(mpcn *MPCNode, ses *Session) {
 			}
 		}
 		if res == useraction {
-			ses.NextPrompt(ses)
+			if ses.NextPrompt != nil {
+				ses.NextPrompt(ses)
+			} else {
+				fmt.Println("Next prompt not defined")
+			}
 
 		}
 		if res == history {
@@ -138,12 +142,13 @@ func SessionUI(mpcn *MPCNode, ses *Session) {
 
 func History(ses *Session) {
 	fmt.Println("SESSION HISTORY OF", ses.ID, "--------------")
-	for k, m := range ses.History {
-		cut := len(m.Message)
-		if cut > 100 {
-			cut = 8
+	for k, mh := range ses.History {
+		m := mh.Message
+		cut := len(m.MessageString())
+		if cut > 300 {
+			cut = 100
 		}
-		fmt.Printf("%v. from: %s command: %s\n\t%s...\n", k+1, m.SenderID, m.Command, m.Message[:cut])
+		fmt.Printf("%v. from: %s command: %s\n\t%s...\n", k+1, m.SenderID, m.Command, m.MessageString()[:cut])
 	}
 	fmt.Println("--------------------------------------------")
 }
@@ -160,7 +165,7 @@ func StartNewSessionUI(mpcn *MPCNode) {
 	sort.Strings(keys)
 
 	for _, prot := range keys {
-		if prot != string(dumb) {
+		if prot != string(dumb) && Protocols[Protocol(prot)].NewSessionUI != nil {
 			items = append(items, prot)
 		}
 	}

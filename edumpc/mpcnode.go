@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -27,22 +28,39 @@ type MPCNode struct {
 	sessions map[string]*Session
 }
 
-type Command string
+func (mpcn *MPCNode) PeerID() string {
+	return mpcn.self.String()
+}
 
-const initialize = Command("initialize")
-const challenge = Command("challenge")
-const response = Command("response")
+const initialize = "initialize"
+const challenge = "challenge"
+const response = "response"
 
 // MPCMessage gets converted to/from JSON and sent in the body of pubsub messages.
 type MPCMessage struct {
 	MessageID string
 	Message   string //[]byte
 	Protocol  Protocol
-	Command   Command
+	Command   string
 	SenderID  string
 	SessionID string
 	To        string // peer.ID, to be used when targetting a specific peer
 
+}
+
+func (mpcm *MPCMessage) SetMessage(in interface{}) (err error) {
+	b, err := json.Marshal(in)
+	mpcm.Message = string(b)
+	return
+}
+
+func (mpcm *MPCMessage) CastMessage(out interface{}) (err error) {
+	err = json.Unmarshal([]byte(mpcm.Message), out)
+	return
+}
+
+func (mpcm *MPCMessage) MessageString() string {
+	return mpcm.Message
 }
 
 /*
@@ -65,7 +83,7 @@ func (mpcn *MPCNode) readLoop() {
 			continue
 		}
 
-		mpcn.ProcessMessage(msg)
+		go mpcn.ProcessMessage(msg)
 	}
 }
 
@@ -94,7 +112,7 @@ func (mpcn *MPCNode) SendMsg(mpcmsg *MPCMessage, ses *Session) {
 	}
 	mpcmsg.SenderID = mpcn.self.String()
 	mpcmsg.SessionID = ses.ID
-	ses.History = append(ses.History, mpcmsg)
+	ses.History = append(ses.History, MessageHistoryEntry{time.Now(), mpcmsg})
 
 	// Handle protocol if not set in the message
 	if ses.Protocol == "" {

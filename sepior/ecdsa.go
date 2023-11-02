@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/san-lab/EduMPC/edumpc"
 	"gitlab.com/sepior/go-tsm-sdk/sdk/tsm"
 )
 
@@ -54,5 +55,10 @@ func GenerateKey() {
 	}
 
 	fmt.Printf("Signature: %s\n", hex.EncodeToString(derSignature))
+
+}
+
+func ecdsaui(n *edumpc.MPCNode) {
+	InitNewSepSessionUI(n)
 
 }

@@ -30,13 +30,16 @@ func RootUI(mpcn *edumpc.MPCNode) {
 		Items: items,
 	}
 	for {
+		pr.Size = len(items)
 		_, sid, _ := pr.Run()
 		switch sid {
 		case TSMClient:
 			tsmClient()
 		case ECDSAClient:
+			ecdsaui(mpcn)
 		case EdDSAClient:
 		case UserClient:
+			Users(mpcn)
 		case KeyClient:
 			KeysUI()
 		case up:

@@ -120,12 +120,13 @@ func Ot1PromptJoin(ses *edumpc.Session) {
 		ots.Msg2, _ = prP.Run()
 
 		ots.A, ots.Priv_a, _ = senderInit(myCurve)
-		ABytes, _ := json.Marshal(ots.A)
+		//ABytes, _ := json.Marshal(ots.A)
 
-		mpcm := new(edumpc.MPCMessage)
-		mpcm.Message = string(ABytes)
-		mpcm.Command = "choose"
-		ses.Respond(mpcm)
+		//mpcm := new(edumpc.MPCMessage)
+		//mpcm.Message = string(ABytes)
+		//mpcm.SetMessage(ots.A)
+		//mpcm.Command = "choose"
+		ses.Respond2("choose", ots.A)
 		ses.Interactive = false
 		ses.Status = "joined"
 	}

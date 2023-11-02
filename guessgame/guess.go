@@ -1,7 +1,6 @@
 package guessgame
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/big"
 
@@ -39,7 +38,7 @@ func GameInvite(mpcn *edumpc.MPCNode) {
 	ses.Node = mpcn
 	mpcm := new(edumpc.MPCMessage)
 	mpcm.Command = "guess"
-	mpcm.Message = fmt.Sprint(x)
+	mpcm.SetMessage(fmt.Sprint(x))
 	mpcm.Protocol = Guess
 	ses.HandleMessage = HandleGuessMessage
 	ses.Respond(mpcm)
@@ -74,7 +73,9 @@ func HandleGuessMessage(mpcm *edumpc.MPCMessage, ses *edumpc.Session) {
 	case "guess":
 		ses.Interactive = true
 		ses.NextPrompt = GuessPrompt
-		challenge, err := new(big.Int).SetString(mpcm.Message, 10)
+		out := new(string)
+		mpcm.CastMessage(out)
+		challenge, err := new(big.Int).SetString(*out, 10)
 		if err {
 			fmt.Println("Error", err)
 		}
@@ -85,10 +86,10 @@ func HandleGuessMessage(mpcm *edumpc.MPCMessage, ses *edumpc.Session) {
 
 	case "success":
 		//TODO: Verify the guess
-		fmt.Println(mpcm.Message)
+		fmt.Println(mpcm.MessageString())
 		ses.Status = resolution
 		st := new(GuessState)
-		err := json.Unmarshal([]byte(mpcm.Message), &st)
+		err := mpcm.CastMessage(st)
 		if err != nil {
 			fmt.Println("Error unmarshalling")
 		}
@@ -122,8 +123,7 @@ func GuessPrompt(ses *edumpc.Session) {
 		mpcm := new(edumpc.MPCMessage)
 		mpcm.Command = "success"
 		//Send to the originator the number of tries
-		b, err := json.Marshal(st)
-		mpcm.Message = string(b)
+		err := mpcm.SetMessage(st)
 		if err != nil {
 			fmt.Println("Error marshalling")
 		}
@@ -151,7 +151,7 @@ func myDetails(ses *edumpc.Session) {
 	case newgame:
 		fmt.Printf("New game started. Number to guess: %v\n", st.Challenge)
 	case joingame:
-		fmt.Println("Invitation received from", ses.History[0].SenderID)
+		fmt.Println("Invitation received from", ses.History[0].Message.SenderID)
 		fmt.Printf("Current number of tries %v\n", st.Tries)
 	case resolution:
 		fmt.Printf("Game over! Number guessed: %v. Number of tries: %v \n", st.Challenge, st.Tries)

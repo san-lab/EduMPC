@@ -66,7 +66,7 @@ func PrintPM2AttState(ses *edumpc.Session) {
 }
 
 func InitNewPM2Att(mpcn *edumpc.MPCNode) {
-	var err error
+	//var err error
 	sid := "PM2Att-" + uuid.NewString()
 	ses := NewSenderPM2AttSession(mpcn, sid)
 	st := (ses.State).(*PM2AttState)
@@ -77,21 +77,21 @@ func InitNewPM2Att(mpcn *edumpc.MPCNode) {
 	bits := int(b.Int64())
 	st.Priv, st.Pub, st.Ps, st.Qs = somecrypto.GenerateAttackKey(bits)
 
-	mpcm := new(edumpc.MPCMessage)
-	mpcm.Command = "join"
+	//mpcm := new(edumpc.MPCMessage)
+	//mpcm.Command = "join"
 	msg := &PM2AttMessage{}
 	msg.N = st.Priv.N
 	msg.V = st.MulShare
 	st.V = msg.V
-	bMessage, err := json.Marshal(msg)
+	//bMessage, err := json.Marshal(msg)
 
-	if err != nil {
-		fmt.Println(err)
-	}
-	mpcm.Message = string(bMessage)
+	//if err != nil {
+	//	fmt.Println(err)
+	//}
+	//mpcm.Message = string(bMessage)
 
-	mpcm.Protocol = PM2Att
-	ses.Respond(mpcm)
+	//mpcm.Protocol = PM2Att
+	ses.Respond2("join", msg)
 	ses.Interactive = false
 
 }
@@ -189,16 +189,16 @@ func PM2AttPromptJoin(ses *edumpc.Session) {
 		msg := new(PM2AttMessage)
 		msg.N = st.Pub.N
 		msg.V = V1
-		b, err := json.Marshal(msg)
-		if err != nil {
-			fmt.Println(err)
-		}
+		//b, err := json.Marshal(msg)
+		//if err != nil {
+		//	fmt.Println(err)
+		//}
 
-		mpcm := new(edumpc.MPCMessage)
-		mpcm.Message = string(b)
-		mpcm.Command = "save"
+		//mpcm := new(edumpc.MPCMessage)
+		//mpcm.SetMessage(msg)
+		//mpcm.Command = "save"
 
-		ses.Respond(mpcm)
+		ses.Respond2("save", msg)
 		ses.Interactive = false
 		ses.Status = "joined"
 	}
