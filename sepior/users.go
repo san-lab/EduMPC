@@ -1,6 +1,8 @@
 package sepior
 
 import (
+	"encoding/json"
+
 	"github.com/manifoldco/promptui"
 	"github.com/san-lab/EduMPC/edumpc"
 	"gitlab.com/sepior/go-tsm-sdk/sdk/tsm"
@@ -11,9 +13,7 @@ const ListUsersLab = "List Users"
 func Users(mpcn *edumpc.MPCNode) {
 	uc := tsm.NewUsersClient(tsmC)
 	//uc.ListUsers()
-	//uc.Disable(uID)
-	//uc.Enable(uID)
-	//uc.ResetPassword(uid)
+
 	items := []string{ListUsersLab, up}
 	sel := promptui.Select{Label: "Users Management"}
 	sel.Items = items
@@ -24,6 +24,7 @@ func Users(mpcn *edumpc.MPCNode) {
 		return
 	case ListUsersLab:
 		ListUsers(uc)
+		return
 	}
 
 }
@@ -35,30 +36,103 @@ type userdisp struct {
 	AuthType string
 }
 
+const userTemplate = `---------- User {{.UserID}} ----------
+{{ "Name:" | faint }}                  {{.DisplayName }}
+{{ "Role:" | faint }}                  {{.Role }}
+{{ "Authentication:" | faint }}	{{.AuthenticationType }}
+{{ "Disabled:" | faint}}              {{.Disabled}}`
+
 func ListUsers(uc tsm.UsersClient) {
+
 	ul, err := uc.ListUsers()
 	if err != nil {
 		Lerror(err)
 		return
 	}
-	users := make([]userdisp, len(ul))
-	for i, u := range ul {
-		//fmt.Printf("%v.\t%20s %20s %20s %20s\n", i+1, u.UserID, u.Description, u.DisplayName, u.AuthenticationType)
-		users[i] = userdisp{Name: u.UserID, Role: u.Role, Dispname: u.DisplayName, AuthType: u.AuthenticationType}
+	/*
+		UserID             string `json:"user_id"`
+		Role               string `json:"role"`
+		DisplayName        string `json:"display_name"`
+		Description        string `json:"description"`
+		AuthenticationType string `json:"authentication_type"`
+		Disabled           bool   `json:"disabled"`
+	*/
+
+	up := struct {
+		UserID string
+		Up     bool
+	}{"Up", true}
+	items := []interface{}{}
+	for _, u := range ul {
+		items = append(items, u)
+
 	}
+	items = append(items, up)
 	sel := promptui.Select{Label: "Existing users"}
-	sel.Items = users
+	sel.Items = items
+	sel.Size = len(items)
+	exitPoint := len(items) - 1
 	templates := &promptui.SelectTemplates{
-		Label:    "{{ . }}?",
-		Active:   " {{.Name | cyan}} ",
-		Inactive: "  {{.Name}} ",
-		Selected: " {{.Name}}",
-		Details: `
---------- User {{.Name}} ----------
-{{ "D.Name:" | faint }} {{ .Dispname }}
-{{ "Role:" | faint }} {{ .Role }}
-{{ "Authentication:" | faint }}	{{.AuthType }}`,
+
+		Active:   "{{.UserID | cyan}} ",
+		Inactive: "{{.UserID}} ",
+		Selected: "{{.UserID}}",
+		Details: `{{if eq .UserID "Up"}}
+exit {{else}}` + userTemplate + `{{end}}`,
 	}
 	sel.Templates = templates
-	sel.Run()
+	idx, _, err := sel.Run()
+	if err != nil {
+		Lerror(err)
+		return
+	}
+	if idx == exitPoint {
+		return
+	} else {
+		user, ok := items[idx].(tsm.User)
+		if !ok {
+			Lerror("Error casting")
+			return
+		}
+		UserMng(user, uc)
+	}
+
+}
+
+func UserMng(user tsm.User, uc tsm.UsersClient) {
+	sel := promptui.Select{}
+	sel.Label = user
+	sel.Templates = &promptui.SelectTemplates{Label: `{{"---User: " | faint}} {{.UserID}}  {{"Disabled:" | faint}} {{.Disabled}} {{"---"| faint}}`}
+	items := []interface{}{up}
+	if user.Disabled {
+		items = append(items, "Enable")
+	} else {
+		items = append(items, "Disable")
+	}
+	items = append(items, "Reset password")
+
+	sel.Items = items
+	_, res, _ := sel.Run()
+	switch res {
+	case "Enable":
+		uc.Enable(user.UserID)
+	case "Disable":
+		uc.Disable(user.UserID)
+	case "Reset password":
+		creds, err := uc.ResetPassword(user.UserID)
+		if err != nil {
+			Lerror(err)
+		}
+		j, err := json.MarshalIndent(creds, " ", " ")
+		if err != nil {
+			Lerror(err)
+		}
+		Log(string(j))
+	default:
+		Log("Missed it...")
+	}
+	//uc.Disable(uID)
+	//uc.Enable(uID)
+	//uc.ResetPassword(uid)
+
 }

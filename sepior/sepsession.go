@@ -23,7 +23,7 @@ func Load(ses *edumpc.Session, b []byte) error { return nil }
 func Init(mpcn *edumpc.MPCNode) {
 	edumpc.AddPackageUI(sepiorui, RootUI)
 	lmpcn = mpcn
-	initSepNodes(networks[0][1])
+	initSepNodes(networks[2][1])
 
 	edumpc.Protocols[ProtName] = &SessionHandler
 	edumpc.Protocols[PartSigProtocol] = PartSigHandler
