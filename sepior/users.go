@@ -1,3 +1,6 @@
+//go:build sepior
+// +build sepior
+
 package sepior
 
 import (
@@ -62,16 +65,19 @@ func ListUsers(uc tsm.UsersClient) {
 		UserID string
 		Up     bool
 	}{"Up", true}
+	newu := struct{ UserID string }{promptui.Styler(promptui.FGGreen)("Create New User")}
 	items := []interface{}{}
 	for _, u := range ul {
 		items = append(items, u)
 
 	}
+
 	items = append(items, up)
 	sel := promptui.Select{Label: "Existing users"}
+	exitPoint := len(items) - 1
+	items = append(items, newu)
 	sel.Items = items
 	sel.Size = len(items)
-	exitPoint := len(items) - 1
 	templates := &promptui.SelectTemplates{
 
 		Active:   "{{.UserID | cyan}} ",
@@ -88,6 +94,8 @@ exit {{else}}` + userTemplate + `{{end}}`,
 	}
 	if idx == exitPoint {
 		return
+	} else if idx == exitPoint+1 {
+		createNewUser(uc)
 	} else {
 		user, ok := items[idx].(tsm.User)
 		if !ok {
@@ -97,6 +105,26 @@ exit {{else}}` + userTemplate + `{{end}}`,
 		UserMng(user, uc)
 	}
 
+}
+
+func createNewUser(uc tsm.UsersClient) {
+	pr := promptui.Prompt{}
+	pr.Label = "Diplay name of the new user?"
+	dn, _ := pr.Run()
+	pr.Label = "Description"
+	ds, _ := pr.Run()
+
+	creds, err := uc.CreatePasswordUser(dn, ds)
+	if err != nil {
+		Lerror(err)
+		return
+	}
+	j, err := json.MarshalIndent(creds, " ", " ")
+	if err != nil {
+		Lerror(err)
+	}
+	Log(string(j))
+	networks = append(networks, []string{ds, string(j)})
 }
 
 func UserMng(user tsm.User, uc tsm.UsersClient) {
