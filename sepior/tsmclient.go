@@ -36,9 +36,9 @@ const marblecredentials string = `{
         "http://marble.uksouth.cloudapp.azure.com:8502"
     ],
     "passwords": [
-        "wGqFh6PeWgPTPVr1qbXMMgMaHG2SuZxzX2MiQAYPWW0i",
-        "HF7brlgTFxrbuK0emYjiaZm1oxuqyQufbkN4KfYN0dXS",
-        "JEXKkAXJM7xF86vXUuFHLY7ic3IcWTtFLVFOOWM25HH5"
+		"Uk01NQ4k6dIf3whBR8H5dlUBob01SoF3nitA1rEFPDIw",
+        "bDoKix1PBfWqWvsPc4vKMreTcktoD1xxgM5OnkicVpXZ",
+  		 "DOTEqnSVlYjbBeR02ktfBfI4br6eGHb79yqlIJiWonSa"
     ]
 }`
 
@@ -70,7 +70,50 @@ const garmcred = `{
 	]
 }`
 
-var networks = [][]string{{"Local", localcred}, {"Marble Vanilla", marblecredentials}, {"Marble Vanilla Admin", marbleadmincredentials}, {"Marble Gramin", garmcred}}
+const k9dmincredentials string = `{
+    "userID": "admin",
+    "urls": [
+        "http://20.13.99.178:80",
+        "http://20.23.72.177:80",
+        "http://20.23.72.202:80"
+    ],
+    "passwords": [
+        "pass",
+        "pass",
+        "pass"
+    ]
+}`
+
+const k9usercred = `{
+	"userID": "0RRMl8XwS1eds1AMgVNu9QgOrJzG",
+	"urls": [
+	 "http://20.13.99.178:80",
+	 "http://20.23.72.177:80",
+	 "http://20.23.72.202:80"
+	],
+	"passwords": [
+	 "lZvs1niJRZvAY4l0Ea029F3yXSnxXWw1eTIsHlffoZ1y",
+	 "O9YymqoEMJhuJV5R0TGMVKiuoVGlceU1lc5JndrScPGL",
+	 "BMSf49w9VzPe2NZV7pJ3ee4xmcbVqGvbKTms3Ii14EJY"
+	]
+   }`
+
+/*
+	{
+	  "userID": "wAAYPgHft9seVmIBA1sIdVkjYwLT",
+	  "urls": [
+	   "http://20.13.99.178:80",
+	   "http://20.23.72.177:80",
+	   "http://20.23.72.202:80"
+	  ],
+	  "passwords": [
+	   "AOlVWie90yl2dqBeY0pVzf6AOyel3PmSZ6iYcW6t3MYH",
+	   "z9XxxR5uzmlklV5h6SRc947EI8wi2JKifRb0i9qte3jz",
+	   "jK0WT4alPVHQ7y85HUgcJ9EExZnjqU86vr6EIwUexAF2"
+	  ]
+	 }
+*/
+var networks = [][]string{{"Local", localcred}, {"Marble Vanilla", marblecredentials}, {"Marble Vanilla Admin", marbleadmincredentials}, {"Marble Gramin", garmcred}, {"K9 admin", k9dmincredentials}, {"K9 user", k9usercred}}
 
 var lmpcn *edumpc.MPCNode
 
