@@ -88,7 +88,7 @@ func defaultNick(p peer.ID) string {
 
 // shortID returns the last 8 chars of a base58-encoded peer id.
 func shortID(p peer.ID) string {
-	pretty := p.Pretty()
+	pretty := p.ShortString()
 	return pretty[len(pretty)-8:]
 }
 
@@ -104,7 +104,7 @@ func (n *discoveryNotifee) HandlePeerFound(pi peer.AddrInfo) {
 	//fmt.Printf("discovered new peer %s\n", pi.ID.Pretty())
 	err := n.h.Connect(context.Background(), pi)
 	if err != nil {
-		fmt.Printf("error connecting to peer %s: %s\n", pi.ID.Pretty(), err)
+		fmt.Printf("error connecting to peer %s: %s\n", pi.ID.ShortString(), err)
 	}
 }
 

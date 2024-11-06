@@ -42,7 +42,7 @@ func TopUI(mpcn *MPCNode) {
 		case config:
 			ConfigUI(mpcn)
 		case peers:
-			prs := mpcn.topic.ListPeers()
+			prs := mpcn.currentTopic.ListPeers()
 			if len(prs) > 0 {
 				for _, pr := range prs {
 					fmt.Println(pr)
@@ -63,9 +63,27 @@ func TopUI(mpcn *MPCNode) {
 	}
 }
 
+const listTopics = "List Networks (libp2p topics)"
+
 func ConfigUI(mpcn *MPCNode) {
 	fmt.Println(mpcn.self)
-	fmt.Println(mpcn.topic)
+	fmt.Println(mpcn.currentTopic)
+	label := fmt.Sprintf("id:%s on %s network", mpcn.currentTopic, mpcn.self)
+	sel := promptui.Select{}
+	sel.Label = promptui.Styler(promptui.FGGreen)(label)
+	items := []string{listTopics, up}
+	sel.Items = items
+	_, res, err := sel.Run()
+	if err != nil {
+		Lerror(err)
+		return
+	}
+	switch res {
+	case listTopics:
+		mpcn.ListTopics()
+	default:
+		Log("Unreachable reached")
+	}
 
 }
 
@@ -197,4 +215,14 @@ func PromptForNumber(label, def string) *big.Int {
 		pr.Default = res
 	}
 
+}
+
+func Log(in ...interface{}) {
+	fmt.Println(in...)
+}
+
+func Lerror(in ...interface{}) {
+	s := fmt.Sprint(in...)
+	s = promptui.Styler(promptui.FGRed)(s)
+	Log(s)
 }

@@ -20,12 +20,17 @@ var MPCNET string
 // messages are pushed to the Messages channel.
 type MPCNode struct {
 	// Messages is a channel of messages received from other peers in the chat room
-	ctx      context.Context
-	ps       *pubsub.PubSub
-	topic    *pubsub.Topic
-	sub      *pubsub.Subscription
-	self     peer.ID
-	sessions map[string]*Session
+	ctx          context.Context
+	ps           *pubsub.PubSub
+	currentTopic *pubsub.Topic
+	sub          *pubsub.Subscription
+	self         peer.ID
+	sessions     map[string]*Session
+	topics       []string
+}
+
+func (mpcn *MPCNode) ListTopics() {
+	fmt.Println("Not Implemented")
 }
 
 func (mpcn *MPCNode) PeerID() string {
@@ -124,7 +129,7 @@ func (mpcn *MPCNode) SendMsg(mpcmsg *MPCMessage, ses *Session) {
 	}
 
 	b, _ := json.Marshal(mpcmsg)
-	mpcn.topic.Publish(context.Background(), b)
+	mpcn.currentTopic.Publish(context.Background(), b)
 }
 
 var mutex = &sync.Mutex{}
@@ -132,7 +137,7 @@ var mutex = &sync.Mutex{}
 func (mpcn *MPCNode) PeerCount() int {
 	mutex.Lock()
 	defer mutex.Unlock()
-	return len(mpcn.topic.ListPeers())
+	return len(mpcn.currentTopic.ListPeers())
 }
 
 // tries to subscribe to the PubSub topic for the room name, returning
@@ -153,12 +158,12 @@ func JoinMPCNet(ctx context.Context, ps *pubsub.PubSub, selfID peer.ID, roomName
 	}
 
 	mpcn := &MPCNode{
-		ctx:      ctx,
-		ps:       ps,
-		topic:    topic,
-		sub:      sub,
-		self:     selfID,
-		sessions: map[string]*Session{},
+		ctx:          ctx,
+		ps:           ps,
+		currentTopic: topic,
+		sub:          sub,
+		self:         selfID,
+		sessions:     map[string]*Session{},
 	}
 
 	// start reading messages from the subscription in a loop

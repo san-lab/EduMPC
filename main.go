@@ -14,7 +14,7 @@ import (
 
 	"github.com/san-lab/EduMPC/parityattack"
 	"github.com/san-lab/EduMPC/plumbing"
-	"github.com/san-lab/EduMPC/sepior"
+	//"github.com/san-lab/EduMPC/sepior"
 )
 
 type protocol struct {
@@ -44,7 +44,7 @@ var protocols = protmap{}
 
 func init() {
 
-	protocols["sepior"] = &protocol{false, sepior.Init}
+	//protocols["sepior"] = &protocol{false, sepior.Init}
 	protocols["guessgame"] = &protocol{true, guessgame.Init}
 	protocols["oblivtransfer"] = &protocol{false, ot.Init}
 	protocols["chatroom"] = &protocol{false, chat.Init}
